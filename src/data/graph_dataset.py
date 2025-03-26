@@ -54,6 +54,7 @@ class MaterialsGraphDataset(Dataset):
         with open(path, "r") as f:
             item = json.load(f)
 
+        material_id = item["material_id"]
         nodes = item["graph"]["nodes"]
         edges = item["graph"]["edges"]
         props = item["properties"]
@@ -73,6 +74,7 @@ class MaterialsGraphDataset(Dataset):
 
         data = Data(
             x=x,
+            material_id=material_id,
             edge_index=edge_index,
             edge_attr=edge_attr,
             y=y
