@@ -1,1 +1,4 @@
-# Common metrics used during training/evaluation
+import torch
+
+def mae(pred, target):
+    return torch.mean(torch.abs(pred - target)).item()
