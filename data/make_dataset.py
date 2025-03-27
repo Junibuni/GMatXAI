@@ -26,13 +26,10 @@ def get_nn_strategy(name="crystal"):
     | 전략 | 설명 | 장점 | 단점 |
     |------|------|------|------|
     | `CrystalNN` | 물리/화학적으로 가장 정교한 방법 (전하, 거리, 배위 고려) | 정확도 높음 | 느림, 복잡도 ↑ |
-    | `MinimumDistanceNN` | 기준 거리 내 가장 가까운 원자들만 연결 | 빠름, 매우 간단 | 정확도 낮음, 과소연결 가능 |
     | `VoronoiNN` | 공간적으로 Voronoi cell을 기준으로 이웃 정의 | 물리적 직관성 | 일부 구조에서 잘 작동 안 함 |
     """
     if name == "crystal":
         return CrystalNN()
-    if name == "min":
-        return MinimumDistanceNN()
     if name == "voronoi":
         return VoronoiNN()
     raise ValueError(f"Unknown NN strategy: {name}")
@@ -69,15 +66,16 @@ def get_existing_ids():
     }
 
 
-def structure_to_graph_data(structure, nn_strategy):
+def structure_to_graph_data_with_fallback(structure, primary_nn, fallback_nn):
     """
     Structure → 그래프 dict (노드/엣지 목록)
     """
-    structure.add_oxidation_state_by_guess()
     try:
-        s_graph = StructureGraph.from_local_env_strategy(structure, nn_strategy)
-    except Exception as e:
-        raise RuntimeError(f"StructureGraph conversion failed: {e}")
+        structure.add_oxidation_state_by_guess()
+        s_graph = StructureGraph.from_local_env_strategy(structure, primary_nn)
+    except Exception:
+        structure.add_oxidation_state_by_guess()
+        s_graph = StructureGraph.from_local_env_strategy(structure, fallback_nn)
 
     node_feats = [str(site.specie) for site in structure.sites]
     edges = []
@@ -115,7 +113,7 @@ def main():
         "--nn_strategy",
         type=str,
         default="crystal",
-        choices=["crystal", "min", "voronoi"],
+        choices=["crystal", "voronoi"],
     )
     parser.add_argument(
         "--num_entries",
@@ -124,7 +122,7 @@ def main():
     )
     args = parser.parse_args()
 
-    print(f"Fetching {args.num_entries if args.num_entries else "all available"} structures using '{args.nn_strategy}' strategy")
+    print(f"Fetching {args.num_entries if args.num_entries else 'all available'} structures using '{args.nn_strategy}' strategy")
     
     existing_ids = get_existing_ids()
 
@@ -136,11 +134,15 @@ def main():
 
     nn_strategy = get_nn_strategy(args.nn_strategy)
     
-    for doc in tqdm(docs):
+    skipped_materials_cnt = 0
+    pbar = tqdm(docs, leave=False)
+    for doc in pbar:
         material_id = doc.material_id
         if material_id in existing_ids:
             # print(f"{material_id} already exists.")
+            skipped_materials_cnt += 1
             continue
+        pbar.set_description(f"Processing {material_id}")
         structure = doc.structure
 
         props = {
@@ -149,11 +151,16 @@ def main():
         }
 
         try:
-            graph_data = structure_to_graph_data(structure, nn_strategy)
+            graph_data = structure_to_graph_data_with_fallback(
+                structure,
+                primary_nn=nn_strategy,
+                fallback_nn=MinimumDistanceNN()
+            )
             save_as_json(graph_data, material_id, props)
         except Exception as e:
             print(f"Failed for {material_id}: {e}")
 
+    print(f"Processed {len(docs) - skipped_materials_cnt}, Skipped {skipped_materials_cnt} materials.")
 
 if __name__ == "__main__":
     main()
