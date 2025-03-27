@@ -1,7 +1,9 @@
 import os
+import re
 import json
-import torch
+import functools
 
+import torch
 from torch.utils.data import Dataset
 from torch_geometric.data import Data
 from tqdm import tqdm
@@ -25,12 +27,32 @@ ATOM_TYPES = [
     "Nh", "Fl", "Mc", "Lv", "Ts", "Og"
 ]
 
+def extract_atom_specie(formula, include_charge=False):
+    match = re.match(r'^([A-Z][a-z]?)(\d*)([+-])?', formula)
+    if not match:
+        return None
+
+    specie = match.group(1)
+    charge_num = match.group(2)
+    sign = match.group(3)
+
+    if include_charge:
+        if charge_num and sign:
+            charge = int(charge_num) * (1 if sign == '+' else -1)
+            return specie, charge
+        else:
+            return specie, 0
+    else:
+        return specie
 
 def atom_to_onehot(atom):
     """Str -> onehot vector"""
+    atom = extract_atom_specie(atom)
     vec = torch.zeros(len(ATOM_TYPES))
     if atom in ATOM_TYPES:
         vec[ATOM_TYPES.index(atom)] = 1.0
+    else:
+        raise KeyError
     return vec
 
 
@@ -49,6 +71,7 @@ class MaterialsGraphDataset(Dataset):
     def __len__(self):
         return len(self.file_list)
 
+    @functools.lru_cache(maxsize=None)
     def __getitem__(self, idx):
         path = self.file_list[idx]
         with open(path, "r") as f:
@@ -65,10 +88,13 @@ class MaterialsGraphDataset(Dataset):
 
         if self.target_key == "all":
             # 무조건 존재해야 함
-            y = torch.tensor([
-                props["formation_energy_per_atom"],
-                props["band_gap"]
-            ], dtype=torch.float)
+            try:
+                y = torch.tensor([[
+                    props["formation_energy_per_atom"],
+                    props["band_gap"]
+                ]], dtype=torch.float)
+            except KeyError:
+                print(f"{material_id} has no y data")
         else:
             y = torch.tensor([props[self.target_key]], dtype=torch.float)
 
