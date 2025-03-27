@@ -17,6 +17,9 @@ load_dotenv(verbose=True)
 MAPI = os.getenv('MAPI')
 SAVE_DIR = "data/processed"
 TARGET_PROPERTIES = ["formation_energy_per_atom", "band_gap"]
+AVAILABLE_FIELDS = """
+    ['builder_meta', 'nsites', 'elements', 'nelements', 'composition', 'composition_reduced', 'formula_pretty', 'formula_anonymous', 'chemsys', 'volume', 'density', 'density_atomic', 'symmetry', 'property_name', 'material_id', 'deprecated', 'deprecation_reasons', 'last_updated', 'origins', 'warnings', 'structure', 'task_ids', 'uncorrected_energy_per_atom', 'energy_per_atom', 'formation_energy_per_atom', 'energy_above_hull', 'is_stable', 'equilibrium_reaction_energy_per_atom', 'decomposes_to', 'xas', 'grain_boundaries', 'band_gap', 'cbm', 'vbm', 'efermi', 'is_gap_direct', 'is_metal', 'es_source_calc_id', 'bandstructure', 'dos', 'dos_energy_up', 'dos_energy_down', 'is_magnetic', 'ordering', 'total_magnetization', 'total_magnetization_normalized_vol', 'total_magnetization_normalized_formula_units', 'num_magnetic_sites', 'num_unique_magnetic_sites', 'types_of_magnetic_species', 'bulk_modulus', 'shear_modulus', 'universal_anisotropy', 'homogeneous_poisson', 'e_total', 'e_ionic', 'e_electronic', 'n', 'e_ij_max', 'weighted_surface_energy_EV_PER_ANG2', 'weighted_surface_energy', 'weighted_work_function', 'surface_anisotropy', 'shape_factor', 'has_reconstructed', 'possible_species', 'has_props', 'theoretical', 'database_IDs']
+"""
 
 def get_nn_strategy(name="crystal"): 
     """
@@ -34,15 +37,36 @@ def get_nn_strategy(name="crystal"):
         return VoronoiNN()
     raise ValueError(f"Unknown NN strategy: {name}")
 
-def fetch_structures(api_key, num_entries=100):
+def fetch_structures_in_batches(api_key, total_limit=None, chunk_size=500):
+    from itertools import islice
+    all_docs = []
+    
+    filter_kwargs = {
+        "is_stable": True
+    }
+
     with MPRester(api_key) as mpr:
-        docs = mpr.materials.summary.search(
-            is_stable=True,
+        generator = mpr.materials.summary.search(
+            **filter_kwargs,
             fields=["material_id", "structure"] + TARGET_PROPERTIES,
-            num_chunks=1,
-            chunk_size=num_entries
+            num_chunks=total_limit,
+            chunk_size=chunk_size
         )
-    return docs
+
+        for doc in islice(generator, total_limit):
+            all_docs.append(doc)
+
+    print(f"Collected {len(all_docs)} structures.")
+    
+    return all_docs
+
+def get_existing_ids():
+    if not os.path.exists(SAVE_DIR):
+        return set()
+    return {
+        fname.replace(".json", "") for fname in os.listdir(SAVE_DIR)
+        if fname.endswith(".json")
+    }
 
 
 def structure_to_graph_data(structure, nn_strategy):
@@ -96,19 +120,28 @@ def main():
     parser.add_argument(
         "--num_entries",
         type=int,
-        default=200
+        default=None
     )
     args = parser.parse_args()
 
-    print(f"Fetching {args.num_entries} structures using '{args.nn_strategy}' strategy")
+    print(f"Fetching {args.num_entries if args.num_entries else "all available"} structures using '{args.nn_strategy}' strategy")
     
-    docs = fetch_structures(MAPI, num_entries=200)
+    existing_ids = get_existing_ids()
+
+    docs = fetch_structures_in_batches(
+        api_key=MAPI,
+        total_limit=args.num_entries,
+        chunk_size=500
+    )
+
     nn_strategy = get_nn_strategy(args.nn_strategy)
     
     for doc in tqdm(docs):
         material_id = doc.material_id
+        if material_id in existing_ids:
+            # print(f"{material_id} already exists.")
+            continue
         structure = doc.structure
-        structure.add_oxidation_state_by_guess()
 
         props = {
             key: getattr(doc, key, None)

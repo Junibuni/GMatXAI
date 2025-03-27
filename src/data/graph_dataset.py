@@ -93,8 +93,8 @@ class MaterialsGraphDataset(Dataset):
                     props["formation_energy_per_atom"],
                     props["band_gap"]
                 ]], dtype=torch.float)
-            except KeyError:
-                print(f"{material_id} has no y data")
+            except Exception as e:
+                print(f"{material_id} has no y data: {e}")
         else:
             y = torch.tensor([props[self.target_key]], dtype=torch.float)
 
