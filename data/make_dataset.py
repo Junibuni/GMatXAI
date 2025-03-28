@@ -1,4 +1,5 @@
 import os
+import warnings
 import json
 import argparse
 from tqdm import tqdm
@@ -73,7 +74,7 @@ def structure_to_graph_data_with_fallback(structure, primary_nn, fallback_nn):
     try:
         structure.add_oxidation_state_by_guess()
         s_graph = StructureGraph.from_local_env_strategy(structure, primary_nn)
-    except Exception:
+    except UserWarning as e:
         structure.add_oxidation_state_by_guess()
         s_graph = StructureGraph.from_local_env_strategy(structure, fallback_nn)
 
@@ -86,7 +87,10 @@ def structure_to_graph_data_with_fallback(structure, primary_nn, fallback_nn):
         for j in adjacency_dict[i]:
             if i < j:
                 edges.append((i, j))
-
+                
+    if len(node_feats) < 2 or len(edges) == 0:
+        raise ValueError("less than 2 nodes or no edges found.")
+    
     return {
         "nodes": node_feats,
         "edges": edges
@@ -121,6 +125,8 @@ def main():
         default=None
     )
     args = parser.parse_args()
+    # CGCNN radius not defined
+    warnings.simplefilter("error", UserWarning)
 
     print(f"Fetching {args.num_entries if args.num_entries else 'all available'} structures using '{args.nn_strategy}' strategy")
     
@@ -159,6 +165,7 @@ def main():
             save_as_json(graph_data, material_id, props)
         except Exception as e:
             print(f"Failed for {material_id}: {e}")
+            continue
 
     print(f"Processed {len(docs) - skipped_materials_cnt}, Skipped {skipped_materials_cnt} materials.")
 
