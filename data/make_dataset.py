@@ -67,10 +67,14 @@ def get_existing_ids():
     }
 
 
-def structure_to_graph_data_with_fallback(structure, primary_nn, fallback_nn):
+def structure_to_graph_data_with_fallback(structure, primary_nn, fallback_nn, max_num_sites=40):
     """
     Structure → 그래프 dict (노드/엣지 목록)
     """
+    if len(structure.sites) > max_num_sites:
+        #raise ValueError(f"Number of sites greater than {max_num_sites}")
+        raise ValueError
+    
     try:
         structure.add_oxidation_state_by_guess()
         s_graph = StructureGraph.from_local_env_strategy(structure, primary_nn)
@@ -89,7 +93,8 @@ def structure_to_graph_data_with_fallback(structure, primary_nn, fallback_nn):
                 edges.append((i, j))
                 
     if len(node_feats) < 2 or len(edges) == 0:
-        raise ValueError("less than 2 nodes or no edges found.")
+        #raise ValueError("less than 2 nodes or no edges found.")
+        raise ValueError
     
     return {
         "nodes": node_feats,
@@ -164,7 +169,7 @@ def main():
             )
             save_as_json(graph_data, material_id, props)
         except Exception as e:
-            print(f"Failed for {material_id}: {e}")
+            #print(f"Failed for {material_id}: {e}")
             continue
 
     print(f"Processed {len(docs) - skipped_materials_cnt}, Skipped {skipped_materials_cnt} materials.")
