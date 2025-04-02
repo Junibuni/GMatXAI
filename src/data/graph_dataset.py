@@ -96,7 +96,7 @@ class MaterialsGraphDataset(Dataset):
             except Exception as e:
                 print(f"{material_id} has no y data: {e}")
         else:
-            y = torch.tensor([props[self.target_key]], dtype=torch.float)
+            y = torch.tensor([props[self.target_key]], dtype=torch.float).unsqueeze(-1)
 
         data = Data(
             x=x,
