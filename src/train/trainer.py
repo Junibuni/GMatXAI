@@ -74,7 +74,7 @@ class Trainer:
             train_losses.append(train_loss)
             val_maes.append(val_mae)
 
-            if epoch == 0 or epoch % step == 0 or epoch == num_epochs:
+            if epoch == 1 or epoch % step == 0 or epoch == num_epochs:
                 print(f"[Epoch {epoch}] Train Loss: {train_loss:.4f} | Val MAE: {val_mae:.4f}")
 
             if val_mae < best_val_mae:
