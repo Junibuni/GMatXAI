@@ -24,11 +24,12 @@ class Trainer:
         self.loss_fn = loss_fn
         self.scheduler = scheduler
 
-    def train_epoch(self):
+    def train_epoch(self, epoch):
         self.model.train()
         total_loss = 0
+        loader = tqdm(self.train_loader, desc=f"Epoch {epoch} [Train]", leave=False, dynamic_ncols=True)
 
-        for batch in tqdm(self.train_loader, desc="Training", leave=False):
+        for batch in loader:
             batch = batch.to(self.device)
             pred = self.model(batch)
             loss = self.loss_fn(pred, batch.y)
@@ -38,6 +39,7 @@ class Trainer:
             self.optimizer.step()
 
             total_loss += loss.item() * batch.num_graphs
+            loader.set_postfix(loss=loss.item())
 
         return total_loss / len(self.train_loader.dataset)
 
