@@ -3,7 +3,7 @@ from tqdm import tqdm
 import torch
 import torch.nn as nn
 
-from src.utils.metrics import mae
+from src.utils.metrics import mae, mse, rmse
 
 class Trainer:
     def __init__(
@@ -86,3 +86,30 @@ class Trainer:
 
         print(f"Best Validation MAE: {best_val_mae:.4f}")
         return best_model, train_losses, val_maes
+        
+    def test(self, test_loader, metric='mae'):
+        self.model.eval()
+        preds = []
+        targets = []
+
+        with torch.no_grad():
+            for batch in tqdm(test_loader, desc="Testing", leave=False):
+                batch = batch.to(self.device)
+                pred = self.model(batch)
+                preds.append(pred.cpu())
+                targets.append(batch.y.cpu())
+
+        preds = torch.cat(preds, dim=0)
+        targets = torch.cat(targets, dim=0)
+
+        if metric == "mae":
+            score = mae(preds, targets)
+        elif metric == "rmse":
+            score = rmse(preds, targets)
+        elif metric == "mse":
+            score = mse(preds, targets)
+        else:
+            raise ValueError(f"Unsupported metric: {metric}")
+
+        print(f"Test {metric}: {score:.4f}")
+        return score
