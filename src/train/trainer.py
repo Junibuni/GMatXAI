@@ -59,15 +59,23 @@ class Trainer:
         targets = torch.cat(targets, dim=0)
         return mae(preds, targets)
 
-    def train(self, num_epochs=30):
+    def train(self, num_epochs=30, max_prints=20):
         best_val_mae = float("inf")
         best_model = None
+        step = (num_epochs + max_prints - 1) // max_prints
+
+        train_losses = []
+        val_maes = []
 
         for epoch in range(1, num_epochs + 1):
-            train_loss = self.train_epoch()
+            train_loss = self.train_epoch(epoch)
             val_mae = self.validate()
 
-            print(f"[Epoch {epoch}] Train Loss: {train_loss:.4f} | Val MAE: {val_mae:.4f}")
+            train_losses.append(train_loss)
+            val_maes.append(val_mae)
+
+            if epoch == 0 or epoch % step == 0 or epoch == num_epochs:
+                print(f"[Epoch {epoch}] Train Loss: {train_loss:.4f} | Val MAE: {val_mae:.4f}")
 
             if val_mae < best_val_mae:
                 best_val_mae = val_mae
@@ -77,4 +85,4 @@ class Trainer:
                 self.scheduler.step()
 
         print(f"Best Validation MAE: {best_val_mae:.4f}")
-        return best_model
+        return best_model, train_losses, val_maes
