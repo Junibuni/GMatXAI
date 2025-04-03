@@ -22,7 +22,7 @@ class CGCNNConv(MessagePassing):
             nn.Softplus()
         )
 
-    def forward(self, x, edge_index, edge_attr):
+    def forward(self, x, edge_index, edge_attr=None):
         # x: [num_nodes, node_fea_len]
         # edge_index: [2, num_edges]
         # edge_attr: [num_edges, edge_fea_len]
@@ -32,6 +32,9 @@ class CGCNNConv(MessagePassing):
         # x_i: target node features [num_edges, node_fea_len]
         # x_j: source node features [num_edges, node_fea_len]
         # edge_attr: edge features [num_edges, edge_fea_len]
+        if edge_attr is None:
+            edge_attr = torch.zeros(x_i.size(0), self.edge_fea_len, device=x_i.device)
+        
         z = torch.cat([x_i, x_j, edge_attr], dim=1)  # [num_edges, 2*node_fea_len + edge_fea_len]
         gate = self.message_mlp(z)
         msg = self.gate_mlp(z)
