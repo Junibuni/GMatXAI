@@ -4,6 +4,8 @@ import torch.nn.functional as F
 from torch_geometric.nn import MessagePassing, global_mean_pool
 from torch_geometric.utils import add_self_loops, scatter
 
+from src.models.base import BaseGNNModel
+
 class CGCNNConv(MessagePassing):
     def __init__(self, node_fea_len, edge_fea_len, out_fea_len):
         super(CGCNNConv, self).__init__(aggr='add')
@@ -39,24 +41,29 @@ class CGCNNConv(MessagePassing):
         return F.softplus(x + aggr_out)
 
 
-class CGCNN(torch.nn.Module):
-    def __init__(self, node_fea_len, edge_fea_len, hidden_fea_len, n_conv=3, out_dim=1):
-        super(CGCNN, self).__init__()
-        self.embedding = nn.Linear(node_fea_len, hidden_fea_len)
+class CGCNN(BaseGNNModel):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.convs = nn.ModuleList([
-            CGCNNConv(hidden_fea_len, edge_fea_len, hidden_fea_len)
-            for _ in range(n_conv)
+            CGCNNConv(self.hidden_dim, self.edge_input_dim, self.hidden_dim)
+            for _ in range(self.num_layers)
         ])
-        self.readout = nn.Sequential(
-            nn.Linear(hidden_fea_len, hidden_fea_len),
-            nn.Softplus(),
-            nn.Linear(hidden_fea_len, out_dim)
-        )
+        self.batch_norms = nn.ModuleList([
+            nn.BatchNorm1d(self.hidden_dim)
+            for _ in range(self.num_layers)
+        ])
 
     def forward(self, data):
-        x, edge_index, edge_attr, batch = data.x, data.edge_index, data.edge_attr, data.batch
-        x = self.embedding(x)
-        for conv in self.convs:
+        x, edge_index, edge_attr, batch = (
+            data.x, data.edge_index, data.edge_attr, data.batch
+        )
+
+        x = self.node_emb(x)
+
+        for conv, bn in zip(self.convs, self.batch_norms):
             x = conv(x, edge_index, edge_attr)
-        x = scatter(x, batch, dim=0, reduce='mean')
-        return self.readout(x)
+            x = bn(x)
+            x = torch.relu(x)
+
+        x = self.pool(x, batch)
+        return self.mlp(x)
