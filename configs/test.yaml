@@ -1,10 +1,10 @@
 experiment:
-  model_name: cgcnn
+  model_name: cgcnn_test
   save_dir: checkpoints
 
 data:
   data_dir: data/processed
-  target: formation_energy_per_atom
+  target: [formation_energy_per_atom]
   batch_size: 32
   num_workers: 0
   train_ratio: 0.8
@@ -12,13 +12,22 @@ data:
   seed: 42
 
 model:
-  hidden_dim: 64
-  num_layers: 3
-  node_input_dim: 20
+  node_input_dim: 118
   edge_input_dim: 1
+  hidden_dim: 32
+  num_layers: 5
   output_dim: 1
+  pooling: mean
 
 training:
-  epochs: 30
-  lr: 0.001
   device: cuda
+  epochs: 500
+
+  optimizer:
+    name: adam
+    lr: 0.001
+    weight_decay: 0.0001
+
+  scheduler:
+    name: cosine
+    T_max: 500
