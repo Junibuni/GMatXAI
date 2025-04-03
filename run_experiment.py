@@ -7,6 +7,7 @@ from src.utils.io import save_model
 from src.models.cgcnn import CGCNN
 from src.data.loader import get_loaders
 from src.train.trainer import Trainer
+from src.utils.optim import get_optimizer, get_scheduler
 
 def main():
     parser = argparse.ArgumentParser()
@@ -20,7 +21,8 @@ def main():
         print(f"[{section}]")
         for k, v in getattr(cfg, section).items():
             print(f"  {k}: {v}")
-
+    
+    print("\nLoad Dataset")
     train_loader, val_loader, test_loader = get_loaders(
         data_dir=cfg.data.data_dir,
         target=cfg.data.target,
@@ -39,23 +41,47 @@ def main():
         output_dim=cfg.model.output_dim,
     )
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=cfg.training.lr)
+    optimizer_cfg = cfg.training.optimizer
+    scheduler_cfg = cfg.training.scheduler
 
+    optimizer = get_optimizer(
+        optim_type=optimizer_cfg.name,
+        model_parameters=model.parameters(),
+        **optimizer_cfg
+    )
+
+    scheduler = get_scheduler(
+        scheduler_type=scheduler_cfg.name,
+        optimizer=optimizer,
+        **scheduler_cfg
+    )
+    
     trainer = Trainer(
         model=model,
         train_loader=train_loader,
         val_loader=val_loader,
         optimizer=optimizer,
+        scheduler=scheduler,
         device=cfg.training.device
     )
 
-    best_model = trainer.train(num_epochs=cfg.training.epochs)
+    print("\nStart Training")
+    best_model, train_losses, val_maes = trainer.train(num_epochs=cfg.training.epochs)
 
     save_model(best_model, cfg.experiment.save_dir, cfg.experiment.model_name)
 
     model.load_state_dict(best_model)
     trainer.test(test_loader, metric="mae")
     trainer.test(test_loader, metric="rmse")
+    
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.plot(train_losses, label="train loss")
+    plt.plot(val_maes, label='val loss')
+    plt.legend()
+    plt.xlabel('epochs')
+    plt.ylabel('loss')
+    plt.show()
 
 if __name__ == "__main__":
     main()

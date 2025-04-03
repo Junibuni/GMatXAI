@@ -86,17 +86,15 @@ class MaterialsGraphDataset(Dataset):
         edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous()
         edge_attr = torch.ones(edge_index.size(1), 1)
 
-        if self.target_key == "all":
-            # 무조건 존재해야 함
-            try:
-                y = torch.tensor([[
-                    props["formation_energy_per_atom"],
-                    props["band_gap"]
-                ]], dtype=torch.float)
-            except Exception as e:
-                print(f"{material_id} has no y data: {e}")
-        else:
-            y = torch.tensor([props[self.target_key]], dtype=torch.float).unsqueeze(-1)
+        if not self.target_key:
+            raise ValueError("self.target_key must contain at least one key.")
+
+        try:
+            y_values = [props[k] for k in self.target_key]
+        except KeyError as e:
+            raise KeyError(f"{material_id} is missing required key: {e}")
+
+        y = torch.tensor([y_values], dtype=torch.float)
 
         data = Data(
             x=x,
