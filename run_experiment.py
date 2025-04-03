@@ -38,7 +38,8 @@ def main():
         edge_input_dim=cfg.model.edge_input_dim,
         hidden_dim=cfg.model.hidden_dim,
         num_layers=cfg.model.num_layers,
-        output_dim=cfg.model.output_dim,
+        #output_dim=cfg.model.output_dim,
+        output_dim=len(cfg.data.target)
     )
 
     optimizer_cfg = cfg.training.optimizer
