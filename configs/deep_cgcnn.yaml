@@ -1,6 +1,5 @@
 experiment:
   model_name: cgcnn_test_deep
-  save_dir: checkpoints
 
 data:
   data_dir: data/processed

@@ -16,23 +16,25 @@ def explain_graph_prediction(
     epochs=100,
     device="cpu",
     edge_threshold=0.3,
-    scale_node_size=True
+    scale_node_size=True,
+    explainer=None
 ):
     model = model.to(device)
     data = data.to(device)
     model.eval()
 
-    explainer = Explainer(
-        model=model,
-        algorithm=GNNExplainer(epochs=epochs),
-        explanation_type='model',
-        model_config=ModelConfig(
-            mode='regression',
-            task_level='graph',
-            return_type='raw'  # model(data) → raw tensor
-        ),
-        edge_mask_type='object'
-    )
+    if explainer is None:
+        explainer = Explainer(
+            model=model,
+            algorithm=GNNExplainer(epochs=epochs),
+            explanation_type='model',
+            model_config=ModelConfig(
+                mode='regression',
+                task_level='graph',
+                return_type='raw'  # model(data) → raw tensor
+            ),
+            edge_mask_type='object'
+        )
 
     explanation = explainer(
         x=data.x,

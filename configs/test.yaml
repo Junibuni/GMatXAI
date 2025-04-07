@@ -1,6 +1,6 @@
 experiment:
   model_name: cgcnn_test
-  save_dir: checkpoints
+  explain_material_ids: []
 
 data:
   data_dir: data/processed

@@ -2,6 +2,7 @@ from tqdm import tqdm
 
 import torch
 import torch.nn as nn
+from torch.utils.tensorboard import SummaryWriter
 
 from src.utils.metrics import mae, mse, rmse
 
@@ -12,10 +13,12 @@ class Trainer:
         train_loader,
         val_loader,
         optimizer,
+        log_dir,
         device="cpu",
         loss_fn=nn.L1Loss(),
-        scheduler=None
+        scheduler=None,
     ):
+        self.writer = SummaryWriter(log_dir=log_dir)
         self.model = model.to(device)
         self.train_loader = train_loader
         self.val_loader = val_loader
@@ -48,6 +51,7 @@ class Trainer:
         return total_loss / len(self.train_loader.dataset)
 
     def validate(self):
+        total_loss = 0
         self.model.eval()
         preds = []
         targets = []
@@ -77,12 +81,17 @@ class Trainer:
         for epoch in range(1, num_epochs + 1):
             train_loss = self.train_epoch(epoch)
             val_loss, val_mae = self.validate()
-
+            
             self.train_losses.append(train_loss)
             self.val_losses.append(val_loss)
             self.val_maes.append(val_mae)
             current_lr = self.get_current_lr()
             self.lr_history.append(current_lr)
+
+            self.writer.add_scalar("Loss/train", train_loss, epoch)
+            self.writer.add_scalar("Loss/val", val_loss, epoch)
+            self.writer.add_scalar("Metric/val_mae", val_mae, epoch)
+            self.writer.add_scalar("LR", current_lr, epoch)
 
             if epoch == 1 or epoch % step == 0 or epoch == num_epochs:
                 print(f"[Epoch {epoch}] LR: {current_lr:.6f} | Train Loss: {train_loss:.4f} | Val MAE: {val_mae:.4f}")
