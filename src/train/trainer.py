@@ -128,3 +128,15 @@ class Trainer:
         if self.scheduler and hasattr(self.scheduler, "get_last_lr"):
             return self.scheduler.get_last_lr()[0]
         return self.optimizer.param_groups[0]["lr"]
+    
+    def export_logs_to_csv(self, save_path):
+        import pandas as pd
+        df = pd.DataFrame({
+            "epoch": list(range(1, len(self.train_losses) + 1)),
+            "train_loss": self.train_losses,
+            "val_loss": self.val_losses,
+            "val_mae": self.val_maes,
+            "lr": self.lr_history
+        })
+        df.to_csv(save_path, index=False)
+        print(f"Logs exported to {save_path}")

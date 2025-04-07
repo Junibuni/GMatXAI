@@ -9,3 +9,12 @@ env/
 
 data/processed/*
 data/raw/*
+
+outputs/checkpoints/*
+outputs/explain/*
+outputs/logs/*
+
+!outputs/checkpoints/cgcnn_test_best.pth
+!outputs/checkpoints/.gitkeep
+!outputs/explain/.gitkeep
+!outputs/logs/.gitkeep
