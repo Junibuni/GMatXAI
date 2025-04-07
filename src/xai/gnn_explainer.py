@@ -1,39 +1,13 @@
-# src/xai/gnn_explainer.py
-
 import os
+
 import torch
 import matplotlib.pyplot as plt
 import networkx as nx
-
+from matplotlib.patches import Patch
 from torch_geometric.explain import Explainer, GNNExplainer, ModelConfig
 from torch_geometric.utils import to_networkx
 
-ATOM_COLOR_MAP = {
-    'H': '#FFFFFF', 'He': '#D9FFFF', 'Li': '#CC80FF', 'Be': '#C2FF00', 'B': '#FFB5B5',
-    'C': '#909090', 'N': '#3050F8', 'O': '#FF0D0D', 'F': '#90E050', 'Ne': '#B3E3F5',
-    'Na': '#AB5CF2', 'Mg': '#8AFF00', 'Al': '#BFA6A6', 'Si': '#F0C8A0', 'P': '#FF8000',
-    'S': '#FFFF30', 'Cl': '#1FF01F', 'Ar': '#80D1E3', 'K': '#8F40D4', 'Ca': '#3DFF00',
-    'Sc': '#E6E6E6', 'Ti': '#BFC2C7', 'V': '#A6A6AB', 'Cr': '#8A99C7', 'Mn': '#9C7AC7',
-    'Fe': '#E06633', 'Co': '#F090A0', 'Ni': '#50D050', 'Cu': '#C88033', 'Zn': '#7D80B0',
-    'Ga': '#C28F8F', 'Ge': '#668080', 'As': '#BD80E3', 'Se': '#FFA100', 'Br': '#A62929',
-    'Kr': '#5CB8D1', 'Rb': '#702EB0', 'Sr': '#00FF00', 'Y': '#94FFFF', 'Zr': '#94E0E0',
-    'Nb': '#73C2C9', 'Mo': '#54B5B5', 'Tc': '#3B9E9E', 'Ru': '#248F8F', 'Rh': '#0A7D8C',
-    'Pd': '#006985', 'Ag': '#C0C0C0', 'Cd': '#FFD98F', 'In': '#A67573', 'Sn': '#668080',
-    'Sb': '#9E63B5', 'Te': '#D47A00', 'I': '#940094', 'Xe': '#429EB0', 'Cs': '#57178F',
-    'Ba': '#00C900', 'La': '#70D4FF', 'Ce': '#FFFFC7', 'Pr': '#D9FFC7', 'Nd': '#C7FFC7',
-    'Pm': '#A3FFC7', 'Sm': '#8FFFC7', 'Eu': '#61FFC7', 'Gd': '#45FFC7', 'Tb': '#30FFC7',
-    'Dy': '#1FFFC7', 'Ho': '#00FF9C', 'Er': '#00E675', 'Tm': '#00D452', 'Yb': '#00BF38',
-    'Lu': '#00AB24', 'Hf': '#4DC2FF', 'Ta': '#4DA6FF', 'W': '#2194D6', 'Re': '#267DAB',
-    'Os': '#266696', 'Ir': '#175487', 'Pt': '#D0D0E0', 'Au': '#FFD123', 'Hg': '#B8B8D0',
-    'Tl': '#A6544D', 'Pb': '#575961', 'Bi': '#9E4FB5', 'Po': '#AB5C00', 'At': '#754F45',
-    'Rn': '#428296', 'Fr': '#420066', 'Ra': '#007D00', 'Ac': '#70ABFA', 'Th': '#00BAFF',
-    'Pa': '#00A1FF', 'U': '#008FFF', 'Np': '#0080FF', 'Pu': '#006BFF', 'Am': '#545CF2',
-    'Cm': '#785CE3', 'Bk': '#8A4FE3', 'Cf': '#A136D4', 'Es': '#B31FD4', 'Fm': '#B31FBA',
-    'Md': '#B30DA6', 'No': '#BD0D87', 'Lr': '#C70066', 'Rf': '#CC0059', 'Db': '#D1004F',
-    'Sg': '#D90045', 'Bh': '#E00038', 'Hs': '#E6002E', 'Mt': '#EB0026', 'Ds': '#FF1493',
-    'Rg': '#FF00AF', 'Cn': '#FF007F', 'Fl': '#FF0055', 'Lv': '#FF0022', 'Ts': '#FF0000',
-    'Og': '#E00000'
-}
+from src.utils.atom_info import ATOM_COLOR_MAP
 
 def explain_graph_prediction(
     model,
@@ -70,15 +44,21 @@ def explain_graph_prediction(
 
     graph = to_networkx(data, to_undirected=True)
     pos = nx.spring_layout(graph, seed=42)
+    
+    edge_mask_min = min(edge_mask)
+    edge_mask_max = max(edge_mask)
 
-    filtered_edges = [
-        (u, v) for i, (u, v) in enumerate(graph.edges())
-        if edge_mask[i] >= edge_threshold
-    ]
-    edge_weights = [
-        edge_mask[i] for i, (u, v) in enumerate(graph.edges())
-        if edge_mask[i] >= edge_threshold
-    ]
+    filtered_edges = []
+    edge_weights = []
+    edge_widths = []
+    for i, (u, v) in enumerate(graph.edges()):
+        w = edge_mask[i]
+        if w >= edge_threshold:
+            filtered_edges.append((u, v))
+            edge_weights.append(w)
+            edge_widths.append(
+                1 + 5 * ((w - edge_mask_min) / (edge_mask_max - edge_mask_min))
+            )
 
     labels = {
         i: data.atom_types[i] if hasattr(data, "atom_types") else str(i)
@@ -88,7 +68,15 @@ def explain_graph_prediction(
     node_sizes = None
     if scale_node_size:
         degree_dict = dict(graph.degree())
-        node_sizes = [300 + 50 * degree_dict[n] for n in graph.nodes()]
+        deg_values = [degree_dict[n] for n in graph.nodes()]
+        deg_min = min(deg_values)
+        deg_max = max(deg_values)
+        node_sizes = [
+            100 + 500 * ((degree_dict[n] - deg_min) / (deg_max - deg_min))
+            for n in graph.nodes()
+        ]
+    else:
+        node_sizes = [500 for _ in graph.nodes()]
 
     node_colors = [
         ATOM_COLOR_MAP.get(labels[i].rstrip('0123456789+-'), "#FA1691")
@@ -102,7 +90,7 @@ def explain_graph_prediction(
         edgelist=filtered_edges,
         edge_color=edge_weights,
         edge_cmap=plt.cm.Blues,
-        width=2,
+        width=edge_widths,
         with_labels=True,
         labels=labels,
         node_color=node_colors,
@@ -112,6 +100,19 @@ def explain_graph_prediction(
     )
 
     plt.title("GNNExplainer - Edge Importance")
+    
+    unique_atoms = sorted(set([str(a).rstrip('0123456789+-') for a in data.atom_types]))
+    legend_patches = [
+        Patch(color=ATOM_COLOR_MAP.get(sym, "#FA1691"), label=sym)
+        for sym in unique_atoms
+    ]
+    plt.legend(
+        handles=legend_patches,
+        title="Atom Types",
+        loc="lower center",
+        bbox_to_anchor=(0.5, -0.15),
+        ncol=len(unique_atoms)
+    )
 
     if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
