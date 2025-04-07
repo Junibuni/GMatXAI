@@ -23,6 +23,10 @@ class Trainer:
         self.device = device
         self.loss_fn = loss_fn
         self.scheduler = scheduler
+        self.train_losses = []
+        self.val_losses = []
+        self.val_maes = []
+        self.lr_history = []
 
     def train_epoch(self, epoch):
         self.model.train()
@@ -54,28 +58,34 @@ class Trainer:
                 pred = self.model(batch)
                 preds.append(pred.cpu())
                 targets.append(batch.y.cpu())
+                
+                loss = self.loss_fn(pred, batch.y)
+                total_loss += loss.item() * batch.num_graphs
 
         preds = torch.cat(preds, dim=0)
         targets = torch.cat(targets, dim=0)
-        return mae(preds, targets)
+        avg_loss = total_loss / len(self.val_loader.dataset)
+        val_mae = mae(preds, targets)
+        
+        return avg_loss, val_mae
 
     def train(self, num_epochs=30, max_prints=20):
         best_val_mae = float("inf")
         best_model = None
         step = (num_epochs + max_prints - 1) // max_prints
 
-        train_losses = []
-        val_maes = []
-
         for epoch in range(1, num_epochs + 1):
             train_loss = self.train_epoch(epoch)
-            val_mae = self.validate()
+            val_loss, val_mae = self.validate()
 
-            train_losses.append(train_loss)
-            val_maes.append(val_mae)
+            self.train_losses.append(train_loss)
+            self.val_losses.append(val_loss)
+            self.val_maes.append(val_mae)
+            current_lr = self.get_current_lr()
+            self.lr_history.append(current_lr)
 
             if epoch == 1 or epoch % step == 0 or epoch == num_epochs:
-                print(f"[Epoch {epoch}] Train Loss: {train_loss:.4f} | Val MAE: {val_mae:.4f}")
+                print(f"[Epoch {epoch}] LR: {current_lr:.6f} | Train Loss: {train_loss:.4f} | Val MAE: {val_mae:.4f}")
 
             if val_mae < best_val_mae:
                 best_val_mae = val_mae
@@ -85,7 +95,7 @@ class Trainer:
                 self.scheduler.step()
 
         print(f"Best Validation MAE: {best_val_mae:.4f}")
-        return best_model, train_losses, val_maes
+        return best_model
         
     def test(self, test_loader, metric='mae'):
         self.model.eval()
@@ -113,3 +123,8 @@ class Trainer:
 
         print(f"Test {metric}: {score:.4f}")
         return score
+    
+    def get_current_lr(self):
+        if self.scheduler and hasattr(self.scheduler, "get_last_lr"):
+            return self.scheduler.get_last_lr()[0]
+        return self.optimizer.param_groups[0]["lr"]

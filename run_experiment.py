@@ -67,7 +67,7 @@ def main():
     )
 
     print("\nStart Training")
-    best_model, train_losses, val_maes = trainer.train(num_epochs=cfg.training.epochs)
+    best_model = trainer.train(num_epochs=cfg.training.epochs)
 
     save_model(best_model, cfg.experiment.save_dir, cfg.experiment.model_name)
 
@@ -77,8 +77,8 @@ def main():
     
     import matplotlib.pyplot as plt
     plt.figure()
-    plt.plot(train_losses, label="train loss")
-    plt.plot(val_maes, label='val loss')
+    plt.plot(trainer.train_losses, label="train loss")
+    plt.plot(trainer.val_maes, label='val loss')
     plt.legend()
     plt.xlabel('epochs')
     plt.ylabel('loss')
