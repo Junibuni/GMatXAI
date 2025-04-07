@@ -80,6 +80,7 @@ def main():
         **optimizer_cfg
     )
 
+    # StepLR, CosineAnnealingLR
     scheduler = get_scheduler(
         scheduler_type=scheduler_cfg.name,
         optimizer=optimizer,
