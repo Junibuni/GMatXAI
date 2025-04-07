@@ -101,6 +101,7 @@ class MaterialsGraphDataset(Dataset):
             material_id=material_id,
             edge_index=edge_index,
             edge_attr=edge_attr,
+            atom_types=nodes,
             y=y
         )
         return data
