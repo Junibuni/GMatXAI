@@ -1,20 +1,15 @@
 import torch
 
-def get_optimizer(optim_type: str, model_parameters, **kwargs):
+def get_optimizer(optim_type: str, model_parameters, lr, **kwargs):
     optim_type = optim_type.lower()
 
     if optim_type == "adam":
-        lr = kwargs.get("lr", 1e-3)
         weight_decay = kwargs.get("weight_decay", 0.0)
         return torch.optim.Adam(model_parameters, lr=lr, weight_decay=weight_decay)
 
     elif optim_type == "sgd":
-        lr = kwargs.get("lr")
         momentum = kwargs.get("momentum", 0.9)
         weight_decay = kwargs.get("weight_decay", 0.0)
-
-        if lr is None:
-            raise ValueError("SGD requires 'lr' in kwargs")
 
         return torch.optim.SGD(
             model_parameters,
@@ -24,7 +19,6 @@ def get_optimizer(optim_type: str, model_parameters, **kwargs):
         )
 
     elif optim_type == "adamw":
-        lr = kwargs.get("lr", 1e-3)
         weight_decay = kwargs.get("weight_decay", 0.01)
         return torch.optim.AdamW(model_parameters, lr=lr, weight_decay=weight_decay)
 

@@ -22,7 +22,7 @@ def split_dataset(dataset, train_ratio=0.8, val_ratio=0.1, seed=42):
 
 def get_loaders(
     data_dir,
-    target="all",
+    target=None,
     batch_size=32,
     num_workers=0,
     train_ratio=0.8,

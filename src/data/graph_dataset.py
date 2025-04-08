@@ -42,7 +42,7 @@ def atom_to_onehot(atom):
 class MaterialsGraphDataset(Dataset):
     """JSON → PyG Data object"""
 
-    def __init__(self, data_dir, target="formation_energy_per_atom"):
+    def __init__(self, data_dir, target=None):
         self.data_dir = data_dir
         self.target_key = target
         self.file_list = [
