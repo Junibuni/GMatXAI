@@ -35,6 +35,7 @@ def get_loaders(
     train_set = [dataset[i] for i in train_idx]
     val_set = [dataset[i] for i in val_idx]
     test_set = [dataset[i] for i in test_idx]
+    print(f"Total {len(dataset)} Data: Train({len(train_set)}) / Val({len(val_set)}) / Test({len(test_set)})")
 
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, num_workers=num_workers)

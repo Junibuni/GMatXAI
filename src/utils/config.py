@@ -9,6 +9,15 @@ class ConfigDict(dict):
 
     def __setattr__(self, key, value):
         self[key] = value
+    
+    def to_dict(self):
+        result = {}
+        for key, value in self.items():
+            if isinstance(value, ConfigDict):
+                result[key] = value.to_dict()
+            else:
+                result[key] = value
+        return result
 
 
 def load_config(path):

@@ -47,6 +47,12 @@ def explain_graph_prediction(
     graph = to_networkx(data, to_undirected=True)
     pos = nx.spring_layout(graph, seed=42)
     
+    def safe_normalize(val, val_min, val_max, fallback=0.5):
+        denom = val_max - val_min
+        if denom < 1e-6:
+            return fallback
+        return (val - val_min) / denom
+
     edge_mask_min = min(edge_mask)
     edge_mask_max = max(edge_mask)
 
@@ -58,9 +64,8 @@ def explain_graph_prediction(
         if w >= edge_threshold:
             filtered_edges.append((u, v))
             edge_weights.append(w)
-            edge_widths.append(
-                1 + 5 * ((w - edge_mask_min) / (edge_mask_max - edge_mask_min))
-            )
+            scaled = safe_normalize(w, edge_mask_min, edge_mask_max)
+            edge_widths.append(1 + 5 * scaled)
 
     labels = {
         i: data.atom_types[i] if hasattr(data, "atom_types") else str(i)
@@ -74,7 +79,7 @@ def explain_graph_prediction(
         deg_min = min(deg_values)
         deg_max = max(deg_values)
         node_sizes = [
-            100 + 500 * ((degree_dict[n] - deg_min) / (deg_max - deg_min))
+            100 + 500 * safe_normalize(degree_dict[n], deg_min, deg_max)
             for n in graph.nodes()
         ]
     else:
@@ -115,6 +120,7 @@ def explain_graph_prediction(
         bbox_to_anchor=(0.5, -0.15),
         ncol=len(unique_atoms)
     )
+    plt.subplots_adjust(bottom=0.25)
 
     if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)

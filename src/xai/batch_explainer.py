@@ -1,4 +1,5 @@
 import os
+import json
 
 import torch
 from torch_geometric.explain import Explainer, ModelConfig
@@ -67,9 +68,17 @@ def explain_batch(
                     explainer=explainer
                 )
 
+                explanation_dict = {
+                    'edge_mask': explanation.edge_mask.tolist() if explanation.edge_mask is not None else None,
+                    'prediction': explanation.prediction.tolist() if explanation.prediction is not None else None,
+                    'target': explanation.target.tolist() if explanation.target is not None else None,
+                    'x': explanation.x.tolist() if explanation.x is not None else None,
+                    'edge_index': explanation.edge_index.tolist() if explanation.edge_index is not None else None
+                }
+
                 json_path = os.path.join(json_dir, f"{material_id}.json")
-                with open(json_path, "w") as f:
-                    f.write(explanation.to_json())
+                with open(json_path, 'w') as f:
+                    json.dump(explanation_dict, f, indent=4)
 
             except Exception as e:
                 err_msg = f"Failed to explain {getattr(data, 'material_id', f'#{i}')}: {str(e)}\n"
