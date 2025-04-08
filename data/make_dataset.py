@@ -1,3 +1,5 @@
+# "formation_energy_per_atom", "band_gap" as default
+
 import os
 import warnings
 import json
@@ -35,7 +37,7 @@ def get_nn_strategy(name="crystal"):
         return VoronoiNN()
     raise ValueError(f"Unknown NN strategy: {name}")
 
-def fetch_structures_in_batches(api_key, total_limit=None, chunk_size=500):
+def fetch_structures_in_batches(api_key, total_limit=None, target_properties=[], chunk_size=500):
     from itertools import islice
     all_docs = []
     
@@ -46,7 +48,7 @@ def fetch_structures_in_batches(api_key, total_limit=None, chunk_size=500):
     with MPRester(api_key) as mpr:
         generator = mpr.materials.summary.search(
             **filter_kwargs,
-            fields=["material_id", "structure"] + TARGET_PROPERTIES,
+            fields=["material_id", "structure"] + TARGET_PROPERTIES + target_properties,
             num_chunks=total_limit,
             chunk_size=chunk_size
         )
@@ -129,6 +131,12 @@ def main():
         type=int,
         default=None
     )
+    parser.add_argument(
+        '--target', 
+        nargs='+', 
+        help='Target properties (default: formation_energy_per_atom band_gap)'
+    )
+    
     args = parser.parse_args()
     # CGCNN radius not defined
     warnings.simplefilter("error", UserWarning)
@@ -140,6 +148,7 @@ def main():
     docs = fetch_structures_in_batches(
         api_key=MAPI,
         total_limit=args.num_entries,
+        target_properties=args.target,
         chunk_size=500
     )
 
