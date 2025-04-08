@@ -10,6 +10,8 @@ env/
 data/processed/*
 data/raw/*
 
+outputs/*
+
 outputs/checkpoints/*
 outputs/explain/*
 outputs/logs/*
