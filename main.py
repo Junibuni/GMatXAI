@@ -106,6 +106,9 @@ def flatten_config(cfg_dict, keys_to_track=None):
             full_key = f"{parent}.{k}" if parent else k
             if isinstance(v, dict):
                 extract(v, full_key)
+            elif isinstance(v, (list, tuple)) and all(isinstance(i, (float, int)) for i in v):
+                for i, vi in enumerate(v):
+                    flat[f"{full_key}_{i}"] = vi
             else:
                 flat[full_key] = v
 
