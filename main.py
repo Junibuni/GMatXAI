@@ -4,12 +4,14 @@ import hashlib
 import pandas as pd
 import yaml
 import itertools
+import matplotlib.pyplot as plt
 from itertools import product
 from pathlib import Path
 from copy import deepcopy
 
 from src.data.run_single import run_single_experiment
 from src.utils.config import load_config
+from src.utils.pcp import load_dataframe, pcp
 
 
 def hash_config(cfg_dict):
@@ -164,6 +166,13 @@ def run_sweep(config_path, to_track):
 
     print(f"\n=====================================")
     result_df = pd.DataFrame(sweep_results)
+    
+    # Parallel Plot
+    data, labels = load_dataframe(result_df)
+    fig = pcp(data, labels, alpha=0.8)
+    plt.savefig(sweep_dir / "parallel_plot.svg", format="svg", facecolor="white", bbox_inches="tight")
+    plt.close()
+
     result_df.to_csv(sweep_dir / f"{sweep_name}.csv", index=False)
     print(f"\nSweep complete. Results saved to {sweep_dir / f'{sweep_name}.csv'}")
 
