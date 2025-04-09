@@ -11,7 +11,8 @@ from copy import deepcopy
 
 from src.data.run_single import run_single_experiment
 from src.utils.config import load_config
-from src.utils.pcp import load_dataframe, pcp
+from src.utils.analysis.pcp import load_dataframe, pcp
+from src.utils.analysis.importance import analyze_param_importance
 
 
 def hash_config(cfg_dict):
