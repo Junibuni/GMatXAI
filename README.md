@@ -10,5 +10,10 @@ pip install -r requirements.txt
 
 Generate dataset
 ```
-python data/make_dataset.py --nn_strategy voronoi
+python data/make_dataset.py --nn_strategy crystal
+```
+
+Train model
+```
+python .\main.py --config .\configs\test.yaml
 ```

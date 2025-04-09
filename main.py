@@ -16,31 +16,35 @@ def hash_config(cfg_dict):
     hash_input = str(cfg_dict)
     return hashlib.md5(hash_input.encode()).hexdigest()[:6]
 
-def is_sweep_config(config: dict) -> bool:
-    def contains_list(d):
-        if isinstance(d, dict):
-            for k, v in d.items():
-                if k in ["explain_material_ids", "target"]:
-                    continue
-                if isinstance(v, list):
-                    if any(isinstance(i, dict) for i in v):
-                        if contains_list_in_list_of_dicts(v):
-                            return True
-                    else:
-                        return True
-                if isinstance(v, dict) and contains_list(v):
-                    return True
-        return False
+def get_sweep_keys(config: dict) -> list:
+    sweep_keys = set()
+
+    def find_lists(d, path=()):
+        for k, v in d.items():
+            if k in ["explain_material_ids", "target"]:
+                continue
+            current_path = path + (k,)
+            if isinstance(v, list):
+                if all(isinstance(i, dict) for i in v):
+                    if current_path == ("training", "optimizer"):
+                        sweep_keys.add("optimizer")
+                    elif contains_list_in_list_of_dicts(v):
+                        sweep_keys.add(k)
+                else:
+                    sweep_keys.add(k)
+            elif isinstance(v, dict):
+                find_lists(v, current_path)
 
     def contains_list_in_list_of_dicts(lst):
         for item in lst:
             if isinstance(item, dict):
-                for v in item.values():
-                    if isinstance(v, list):
+                for val in item.values():
+                    if isinstance(val, list):
                         return True
         return False
 
-    return contains_list(config)
+    find_lists(config)
+    return sorted(sweep_keys)
 
 def expand_optimizer_configs(optimizers):
     expanded_optimizers = []
@@ -94,8 +98,36 @@ def generate_sweep_combinations(config):
 
     return combinations
 
+def flatten_config(cfg_dict, keys_to_track=None):
+    flat = {}
 
-def run_sweep(config_path):
+    def extract(d, parent=""):
+        for k, v in d.items():
+            full_key = f"{parent}.{k}" if parent else k
+            if isinstance(v, dict):
+                extract(v, full_key)
+            else:
+                flat[full_key] = v
+
+    extract(cfg_dict)
+
+    if keys_to_track:
+        filtered = {}
+        for k, v in flat.items():
+            for key in keys_to_track:
+                if key in k:
+                    clean_key = (
+                        k.replace("training.optimizer.", "optimizer_")
+                         .replace("training.", "")
+                         .replace("model.", "")
+                         .replace("data.", "")
+                    )
+                    filtered[clean_key] = v
+        return filtered
+
+    return flat
+
+def run_sweep(config_path, to_track):
     base_config = load_config(config_path).to_dict()
     sweep_name = Path(config_path).stem
     sweep_dir = Path("outputs") / sweep_name
@@ -108,25 +140,29 @@ def run_sweep(config_path):
     sweep_results = []
     for i, cfg_dict in enumerate(sweep_configs, start=1):
         tag = f"test_{i:03d}_{hash_config(cfg_dict)}"
+        print(f"\n=============== Start {tag} ===============")
+        
+        flat_params = flatten_config(cfg_dict, keys_to_track=to_track)
         cfg_path = sweep_dir / f"{tag}.yaml"
         with open(cfg_path, "w") as f:
             yaml.dump(cfg_dict, f)
 
+        print(f"\nHyperparams: {flat_params}")
         tag_full, log_path = run_single_experiment(str(cfg_path), tag_override=f"{sweep_name}/{tag}")
 
         try:
             df = pd.read_csv(log_path)
-            best_idx = df["val_mae"].idxmin()
-            best_row = df.iloc[best_idx].to_dict()
+            best_row = {"val_mae": df["val_mae"].min()}
         except Exception as e:
             best_row = {"error": str(e)}
 
-        best_row.update({"tag": tag})
-        sweep_results.append(best_row)
+        result = {"tag": tag, **flat_params, **best_row}
+        sweep_results.append(result)
 
+    print(f"\n=====================================")
     result_df = pd.DataFrame(sweep_results)
     result_df.to_csv(sweep_dir / f"{sweep_name}.csv", index=False)
-    print(f"Sweep complete. Results saved to {sweep_dir / f'{sweep_name}.csv'}")
+    print(f"\nSweep complete. Results saved to {sweep_dir / f'{sweep_name}.csv'}")
 
 
 def main():
@@ -136,8 +172,10 @@ def main():
 
     cfg = load_config(args.config)
 
-    if is_sweep_config(cfg):
-        run_sweep(args.config)
+    sweep_keys = get_sweep_keys(cfg)
+    if sweep_keys:
+        print("Sweep keys:", sweep_keys)
+        run_sweep(args.config, sweep_keys)
     else:
         run_single_experiment(args.config)
 
