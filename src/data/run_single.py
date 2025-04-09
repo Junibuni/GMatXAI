@@ -55,7 +55,7 @@ def run_single_experiment(config_path: str, tag_override: str = None):
     optimizer = get_optimizer(
         optim_type=cfg.training.optimizer.name,
         model_parameters=model.parameters(),
-        lr=cfg.training.lr
+        lr=cfg.training.lr,
         **cfg.training.optimizer
     )
     scheduler = get_scheduler(
@@ -92,6 +92,7 @@ def run_single_experiment(config_path: str, tag_override: str = None):
     plt.xlabel('epochs')
     plt.ylabel('loss')
     plt.savefig(os.path.join(log_dir, "loss.png"))
+    plt.close()
 
     print("\nRun XAI")
     material_ids = getattr(cfg.experiment, "explain_material_ids", None)

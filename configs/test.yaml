@@ -1,5 +1,3 @@
-test_type: single
-
 experiment:
   model_name: cgcnn_test
   explain_material_ids: []

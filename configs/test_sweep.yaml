@@ -1,12 +1,10 @@
-test_type: sweep
-
 experiment:
   model_name: cgcnn_test
   explain_material_ids: []
 
 data:
   data_dir: data/processed
-  target: [formation_energy_per_atom, "hull"]
+  target: [formation_energy_per_atom]
   batch_size: 32
   num_workers: 0
   train_ratio: 0.8
@@ -17,13 +15,13 @@ model:
   node_input_dim: 118
   edge_input_dim: 1
   hidden_dim: [32, 64]
-  num_layers: [1, 5]
+  num_layers: 3
   output_dim: 1
   pooling: mean
 
 training:
   device: cuda
-  epochs: 100
+  epochs: 10
   lr: 0.001
 
   optimizer:
@@ -34,4 +32,4 @@ training:
 
   scheduler:
     name: cosine
-    T_max: 100
+    T_max: 10
