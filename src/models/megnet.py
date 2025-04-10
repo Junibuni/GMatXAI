@@ -45,7 +45,7 @@ class MEGNetBlock(nn.Module):
 
         return x, edge_attr, u
 
-class MEGNetModel(BaseGNNModel):
+class MEGNet(BaseGNNModel):
     def __init__(
         self,
         node_input_dim,

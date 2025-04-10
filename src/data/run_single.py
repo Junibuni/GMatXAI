@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from src.utils.config import load_config
 from src.utils.io import save_model
-from src.models.cgcnn import CGCNN
+from src.models.model_registry import get_model
 from src.data.loader import get_loaders
 from src.train.trainer import Trainer
 from src.utils.optim import get_optimizer, get_scheduler
@@ -47,13 +47,7 @@ def run_single_experiment(config_path: str, tag_override: str = None):
     # ADD MODEL
     assert len(cfg.data.target) == cfg.model.output_dim,\
         f"The number of targets({len(cfg.data.target)}) does not match config.model.output_dim({cfg.model.output_dim})"
-    model = CGCNN(
-        node_input_dim=cfg.model.node_input_dim,
-        edge_input_dim=cfg.model.edge_input_dim,
-        hidden_dim=cfg.model.hidden_dim,
-        num_layers=cfg.model.num_layers,
-        output_dim=len(cfg.data.target),
-    )
+    model = get_model(cfg.experiment.model_name, config=cfg.model)
 
     optimizer = get_optimizer(
         optim_type=cfg.training.optimizer.name,

@@ -1,9 +1,9 @@
 from src.models.cgcnn import CGCNN
-# from src.models.megnet import MEGNet
+from src.models.megnet import MEGNet
 
 MODEL_REGISTRY = {
     "cgcnn": CGCNN,
-    # "megnet": MEGNet,
+    "megnet": MEGNet,
     # "alignn": ALIGNN,
 }
 
