@@ -171,9 +171,12 @@ def run_sweep(config_path, to_track):
     # Parallel Plot
     data, labels = load_dataframe(result_df)
     fig = pcp(data, labels, alpha=0.8)
-    plt.savefig(sweep_dir / "parallel_plot.svg", format="svg", facecolor="white", bbox_inches="tight")
+    plt.savefig(sweep_dir / f"{sweep_name}_parallel_plot.svg", format="svg", facecolor="white", bbox_inches="tight")
     plt.close()
-
+    # Feature Importance
+    feature_importance_df = analyze_param_importance(result_df)
+    feature_importance_df.to_csv(sweep_dir / f"{sweep_name}_feature_importance.csv", index=False)
+    
     result_df.to_csv(sweep_dir / f"{sweep_name}.csv", index=False)
     print(f"\nSweep complete. Results saved to {sweep_dir / f'{sweep_name}.csv'}")
 

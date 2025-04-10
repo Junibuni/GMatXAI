@@ -47,6 +47,7 @@ class CGCNNConv(MessagePassing):
 class CGCNN(BaseGNNModel):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
         self.convs = nn.ModuleList([
             CGCNNConv(self.hidden_dim, self.edge_input_dim, self.hidden_dim)
             for _ in range(self.num_layers)
@@ -57,16 +58,16 @@ class CGCNN(BaseGNNModel):
         ])
 
     def forward(self, data):
-        x, edge_index, edge_attr, batch = (
-            data.x, data.edge_index, data.edge_attr, data.batch
-        )
-
-        x = self.node_emb(x)
+        x = self.node_emb(data.x)
+        edge_index = data.edge_index
+        edge_attr = data.edge_attr if self.use_edge_features else None
+        batch = data.batch
 
         for conv, bn in zip(self.convs, self.batch_norms):
             x = conv(x, edge_index, edge_attr)
             x = bn(x)
-            x = torch.relu(x)
+            x = F.relu(x)
 
         x = self.pool(x, batch)
-        return self.mlp(x)
+        out = self.mlp(x)
+        return out
