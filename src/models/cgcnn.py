@@ -45,8 +45,25 @@ class CGCNNConv(MessagePassing):
 
 
 class CGCNN(BaseGNNModel):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(
+        self, 
+        node_input_dim,
+        edge_input_dim,
+        hidden_dim,
+        num_layers,
+        output_dim,
+        pooling="mean",
+        use_edge_features=False
+    ):
+        super().__init__(
+            node_input_dim,
+            edge_input_dim,
+            hidden_dim,
+            num_layers,
+            output_dim,
+            pooling,
+            use_edge_features
+        )
 
         self.convs = nn.ModuleList([
             CGCNNConv(self.hidden_dim, self.edge_input_dim, self.hidden_dim)

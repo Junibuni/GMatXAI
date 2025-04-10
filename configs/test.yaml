@@ -1,5 +1,5 @@
 experiment:
-  model_name: cgcnn_test
+  model_name: cgcnn
   explain_material_ids: []
 
 data:
