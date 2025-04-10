@@ -107,3 +107,16 @@ class MEGNet(BaseGNNModel):
         config = super().get_config()
         config["global_input_dim"] = self.global_input_dim
         return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(
+            node_input_dim=config.node_input_dim,
+            edge_input_dim=config.edge_input_dim,
+            hidden_dim=config.hidden_dim,
+            num_layers=config.num_layers,
+            output_dim=config.output_dim,
+            pooling=getattr(config, "pooling", "mean"),
+            use_edge_features=getattr(config, "use_edge_features", False),
+            global_input_dim=getattr(config, "global_input_dim", 2)
+        )
