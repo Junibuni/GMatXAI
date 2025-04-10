@@ -44,6 +44,9 @@ def run_single_experiment(config_path: str, tag_override: str = None):
         seed=cfg.data.seed
     )
 
+    # ADD MODEL
+    assert len(cfg.data.target) == cfg.model.output_dim,\
+        f"The number of targets({len(cfg.data.target)}) does not match config.model.output_dim({cfg.model.output_dim})"
     model = CGCNN(
         node_input_dim=cfg.model.node_input_dim,
         edge_input_dim=cfg.model.edge_input_dim,
