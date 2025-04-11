@@ -1,0 +1,33 @@
+experiment:
+  model_name: megnet
+  explain_material_ids: []
+
+data:
+  data_dir: data/processed
+  target: [formation_energy_per_atom]
+  batch_size: 32
+  num_workers: 0
+  train_ratio: 0.8
+  val_ratio: 0.1
+  seed: 42
+
+model:
+  node_input_dim: 118
+  edge_input_dim: 1
+  hidden_dim: 32
+  num_layers: 5
+  output_dim: 1
+  pooling: mean
+
+training:
+  device: cuda
+  epochs: 500
+  lr: 0.001
+
+  optimizer:
+    name: adam
+    weight_decay: 0.0001
+
+  scheduler:
+    name: cosine
+    T_max: 500

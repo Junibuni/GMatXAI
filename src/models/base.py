@@ -84,6 +84,6 @@ class BaseGNNModel(nn.Module):
             hidden_dim=config.hidden_dim,
             num_layers=config.num_layers,
             output_dim=config.output_dim,
-            pooling=getattr(config, "pooling", "mean"),
-            use_edge_features=getattr(config, "use_edge_features", False)
+            pooling=config.get("pooling", "mean"),
+            use_edge_features=config.get("use_edge_features", False)
         )

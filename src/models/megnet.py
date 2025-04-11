@@ -116,7 +116,7 @@ class MEGNet(BaseGNNModel):
             hidden_dim=config.hidden_dim,
             num_layers=config.num_layers,
             output_dim=config.output_dim,
-            pooling=getattr(config, "pooling", "mean"),
-            use_edge_features=getattr(config, "use_edge_features", False),
-            global_input_dim=getattr(config, "global_input_dim", 2)
+            pooling=config.get("pooling", "mean"),
+            use_edge_features=config.get("use_edge_features", False),
+            global_input_dim=config.get("global_input_dim", 2)
         )
