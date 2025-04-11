@@ -44,9 +44,10 @@ def run_single_experiment(config_path: str, tag_override: str = None):
         seed=cfg.data.seed
     )
 
-    # ADD MODEL
     assert len(cfg.data.target) == cfg.model.output_dim,\
         f"The number of targets({len(cfg.data.target)}) does not match config.model.output_dim({cfg.model.output_dim})"
+    
+    print(f"\nLoad Model ({cfg.experiment.model_name}) with Hyperparamters:\n{cfg.model}")
     model = get_model(cfg.experiment.model_name, config=cfg.model)
 
     optimizer = get_optimizer(
