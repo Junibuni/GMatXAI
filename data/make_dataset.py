@@ -7,6 +7,7 @@ import argparse
 from tqdm import tqdm
 from dotenv import load_dotenv 
 
+import numpy as np
 from mp_api.client import MPRester
 from pymatgen.analysis.graphs import StructureGraph
 from pymatgen.analysis.local_env import (
@@ -69,7 +70,7 @@ def get_existing_ids():
     }
 
 
-def structure_to_graph_data_with_fallback(structure, primary_nn, fallback_nn, max_num_sites=40):
+def structure_to_graph_data_with_fallback(structure, primary_nn, fallback_nn, max_num_sites=40, pbc=True):
     """
     Structure → 그래프 dict (노드/엣지 목록)
     """
@@ -80,12 +81,13 @@ def structure_to_graph_data_with_fallback(structure, primary_nn, fallback_nn, ma
     try:
         structure.add_oxidation_state_by_guess()
         s_graph = StructureGraph.from_local_env_strategy(structure, primary_nn)
-    except UserWarning as e:
+    except UserWarning:
         structure.add_oxidation_state_by_guess()
         s_graph = StructureGraph.from_local_env_strategy(structure, fallback_nn)
 
     node_feats = [str(site.specie) for site in structure.sites]
     edges = []
+    cart_vecs = []
 
     adjacency_dict = dict(s_graph.graph.adjacency())
 
@@ -94,13 +96,30 @@ def structure_to_graph_data_with_fallback(structure, primary_nn, fallback_nn, ma
             if i < j:
                 edges.append((i, j))
                 
+                frac_i = structure[i].frac_coords
+                frac_j = structure[j].frac_coords
+                d_frac = frac_j - frac_i
+
+                # PBC
+                if pbc:
+                    d_frac -= np.round(d_frac)
+                vec = structure.lattice.get_cartesian_coords(d_frac)
+                
+                cart_vecs.append(vec)
+
     if len(node_feats) < 2 or len(edges) == 0:
         #raise ValueError("less than 2 nodes or no edges found.")
         raise ValueError
-    
+
+    cart_vecs = np.array(cart_vecs)                    # shape: (N, 3)
+    cart_dist = np.linalg.norm(cart_vecs, axis=1)    # shape: (N,)
+    cart_dir = cart_vecs / cart_dist[:, None]       # shape: (N, 3)
+
     return {
         "nodes": node_feats,
-        "edges": edges
+        "edges": edges,
+        "cart_dist": cart_dist.tolist(),
+        "cart_dir": cart_dir.tolist()
     }
 
 
@@ -133,7 +152,8 @@ def main():
     )
     parser.add_argument(
         '--target', 
-        nargs='+', 
+        nargs='+',
+        default=['formation_energy_per_atom', 'band_gap'],
         help='Target properties (default: formation_energy_per_atom band_gap)'
     )
     
@@ -142,6 +162,7 @@ def main():
     warnings.simplefilter("error", UserWarning)
 
     print(f"Fetching {args.num_entries if args.num_entries else 'all available'} structures using '{args.nn_strategy}' strategy")
+    print(f"Target Properties: {args.target}")
     
     existing_ids = get_existing_ids()
 
@@ -174,7 +195,9 @@ def main():
             graph_data = structure_to_graph_data_with_fallback(
                 structure,
                 primary_nn=nn_strategy,
-                fallback_nn=MinimumDistanceNN()
+                fallback_nn=MinimumDistanceNN(),
+                max_num_sites=50,
+                pbc=True
             )
             save_as_json(graph_data, material_id, props)
         except Exception as e:

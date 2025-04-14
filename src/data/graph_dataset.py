@@ -63,11 +63,19 @@ class MaterialsGraphDataset(Dataset):
         material_id = item["material_id"]
         nodes = item["graph"]["nodes"]
         edges = item["graph"]["edges"]
+        cart_distances = item["graph"]["cart_dist"]
+        cart_directions = item["graph"]["cart_dir"]
         props = item["properties"]
 
         x = torch.stack([atom_to_onehot(atom) for atom in nodes])
         edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous()
         edge_attr = torch.ones(edge_index.size(1), 1)
+        cart_dist = torch.tensor(cart_distances, dtype=torch.float)
+        cart_dir = torch.tensor(cart_directions, dtype=torch.float)
+        non_H_mask = torch.tensor(
+            [not extract_atom_specie(atom)=='H' for atom in nodes],
+            dtype=torch.bool
+        )
 
         if not self.target_key:
             raise ValueError("self.target_key must contain at least one key.")
@@ -84,7 +92,10 @@ class MaterialsGraphDataset(Dataset):
             material_id=material_id,
             edge_index=edge_index,
             edge_attr=edge_attr,
+            cart_dist=cart_dist,
+            cart_dir=cart_dir,
             atom_types=nodes,
+            non_H_mask=non_H_mask,
             y=y
         )
         return data
