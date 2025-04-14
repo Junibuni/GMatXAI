@@ -5,6 +5,7 @@
 ```
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 pip install torch_geometric
+pip install --no-index torch-scatter -f https://data.pyg.org/whl/torch-2.6.0+cu124.html 
 pip install -r requirements.txt
 ```
 
