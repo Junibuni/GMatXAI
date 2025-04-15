@@ -68,9 +68,9 @@ class CartNet(torch.nn.Module):
         for layer in self.layers:
             batch = layer(batch)
         
-        pred, true = self.head(batch)
+        pred = self.head(batch)
         
-        return pred,true
+        return pred
     
     @classmethod
     def from_config(cls, config):
@@ -317,7 +317,7 @@ class Cholesky_head(torch.nn.Module):
 
         U = torch.bmm(L_matrix.transpose(1, 2), L_matrix)
         
-        return U, batch.y
+        return U
 
 class Scalar_head(torch.nn.Module):
     """
@@ -338,6 +338,6 @@ class Scalar_head(torch.nn.Module):
     def forward(self, batch):
         dim_size = int(batch.batch.max().item() + 1)
         batch.x = self.MLP(batch.x)
-        batch.x = scatter(batch.x, batch.batch, dim=0, reduce="mean", dim_size=dim_size).squeeze(-1)
-        return batch.x, batch.y
+        batch.x = scatter(batch.x, batch.batch, dim=0, reduce="mean", dim_size=dim_size)
+        return batch.x
 
