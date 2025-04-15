@@ -19,6 +19,7 @@ model:
   invariant: false
   temperature: false
   atom_types: false
+  cholesky: false
 
 training:
   device: cuda
