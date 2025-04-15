@@ -30,6 +30,7 @@ class Trainer:
         self.val_losses = []
         self.val_maes = []
         self.lr_history = []
+        self.scheduler_step_per_batch = self.should_step_per_batch()
 
     def train_epoch(self, epoch):
         self.model.train()
@@ -44,6 +45,9 @@ class Trainer:
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
+
+            if self.scheduler and self.scheduler_step_per_batch:
+                self.scheduler.step()
 
             total_loss += loss.item() * batch.num_graphs
             loader.set_postfix(loss=loss.item())
@@ -101,7 +105,12 @@ class Trainer:
                 best_model = self.model.state_dict()
 
             if self.scheduler:
-                self.scheduler.step()
+                if self.scheduler_step_per_batch:
+                    pass
+                elif "ReduceLROnPlateau" in self.scheduler.__class__.__name__:
+                    self.scheduler.step(val_loss)
+                else:
+                    self.scheduler.step()
 
         print(f"Best Validation MAE: {best_val_mae:.4f}")
         return best_model
@@ -149,3 +158,23 @@ class Trainer:
         })
         df.to_csv(save_path, index=False)
         print(f"Logs exported to {save_path}")
+        
+    def should_step_per_batch(self):
+        if isinstance(self.scheduler, torch.optim.lr_scheduler.OneCycleLR):
+            return True
+        elif isinstance(self.scheduler, torch.optim.lr_scheduler.CyclicLR):
+            return True
+        elif isinstance(self.scheduler, torch.optim.lr_scheduler.LambdaLR):
+            return True
+        elif isinstance(self.scheduler, torch.optim.lr_scheduler.CosineAnnealingLR) and hasattr(self.scheduler, 'T_max'):
+            return True
+        elif isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+            return False  # This requires val_loss input and steps per epoch
+        elif isinstance(self.scheduler, torch.optim.lr_scheduler.StepLR):
+            return False
+        elif isinstance(self.scheduler, torch.optim.lr_scheduler.MultiStepLR):
+            return False
+        elif isinstance(self.scheduler, torch.optim.lr_scheduler.ExponentialLR):
+            return False
+        else:
+            return False  # Default to epoch-based if unknown scheduler
