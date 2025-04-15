@@ -78,7 +78,7 @@ def run_single_experiment(config_path: str, tag_override: str = None):
         log_dir=log_dir,
     )
 
-    print(f"\nStart Training: {tag}")
+    print(f"\nStart Training {tag} With { {k: cfg.get(k) for k in ['device', 'epochs', 'lr']} }")
     best_model = trainer.train(num_epochs=cfg.training.epochs)
     save_model(best_model, ckpt_dir, cfg.experiment.model_name)
     trainer.export_logs_to_csv(os.path.join(log_dir, "log.csv"))
