@@ -46,6 +46,34 @@ def get_scheduler(scheduler_type: str, optimizer, **kwargs):
             raise ValueError("CosineAnnealingLR requires 'T_max' in kwargs")
 
         return torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=T_max)
+    
+    elif scheduler_type == "onecycle":
+        max_lr = kwargs.get("max_lr")
+        total_steps = kwargs.get("total_steps")
+        epochs = kwargs.get("epochs")
+        steps_per_epoch = kwargs.get("steps_per_epoch")
+        pct_start = kwargs.get("pct_start", 0.3)
+        anneal_strategy = kwargs.get("anneal_strategy", "cos")
+        div_factor = kwargs.get("div_factor", 25.0)
+        final_div_factor = kwargs.get("final_div_factor", 1e4)
+
+        if max_lr is None:
+            raise ValueError("OneCycleLR requires 'max_lr' in kwargs")
+
+        if total_steps is None:
+            if epochs is None or steps_per_epoch is None:
+                raise ValueError("OneCycleLR requires either 'total_steps' or both 'epochs' and 'steps_per_epoch'")
+            total_steps = epochs * steps_per_epoch
+
+        return torch.optim.lr_scheduler.OneCycleLR(
+            optimizer,
+            max_lr=max_lr,
+            total_steps=total_steps,
+            pct_start=pct_start,
+            anneal_strategy=anneal_strategy,
+            div_factor=div_factor,
+            final_div_factor=final_div_factor
+        )
 
     elif scheduler_type == "none" or scheduler_type is None:
         return None
