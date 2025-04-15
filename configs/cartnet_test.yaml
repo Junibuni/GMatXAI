@@ -1,5 +1,5 @@
 experiment:
-  model_name: megnet
+  model_name: cartnet
   explain_material_ids: []
 
 data:
@@ -12,12 +12,13 @@ data:
   seed: 42
 
 model:
-  node_input_dim: 118
-  edge_input_dim: 1
-  hidden_dim: 32
+  dim_in: 118
+  dim_rbf: 16
   num_layers: 5
-  output_dim: 1
-  pooling: mean
+  radius: 5.0
+  invariant: false
+  temperature: false
+  atom_types: false
 
 training:
   device: cuda
@@ -29,5 +30,5 @@ training:
     weight_decay: 0.0001
 
   scheduler:
-    name: cosine
-    T_max: 500
+    name: onecycle
+    max_lr: 0.001
