@@ -44,18 +44,24 @@ def run_single_experiment(config_path: str, tag_override: str = None):
         seed=cfg.data.seed
     )
 
-    assert len(cfg.data.target) == cfg.model.output_dim,\
-        f"The number of targets({len(cfg.data.target)}) does not match config.model.output_dim({cfg.model.output_dim})"
+    if cfg.model.output_dim:
+        assert len(cfg.data.target) == cfg.model.output_dim,\
+            f"The number of targets({len(cfg.data.target)}) does not match config.model.output_dim({cfg.model.output_dim})"
     
     print(f"\nLoad Model ({cfg.experiment.model_name}) with Hyperparamters:\n{cfg.model}")
     model = get_model(cfg.experiment.model_name, config=cfg.model)
 
+    print(f"\nOptimizer Config: {cfg.training.optimizer}")
     optimizer = get_optimizer(
         optim_type=cfg.training.optimizer.name,
         model_parameters=model.parameters(),
         lr=cfg.training.lr,
         **cfg.training.optimizer
     )
+    
+    cfg.training.scheduler.epochs = cfg.training.epochs
+    cfg.training.scheduler.steps_per_epoch = len(train_loader)
+    print(f"\nScheduler Config: {cfg.training.scheduler}")
     scheduler = get_scheduler(
         scheduler_type=cfg.training.scheduler.name,
         optimizer=optimizer,
