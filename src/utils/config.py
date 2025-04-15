@@ -1,15 +1,27 @@
 import yaml
 
 class ConfigDict(dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.update(*args, **kwargs)
+
     def __getattr__(self, key):
-        value = self.get(key)
-        if isinstance(value, dict):
-            return ConfigDict(value)
+        if key not in self:
+            return None
+        value = self[key]
+        if isinstance(value, dict) and not isinstance(value, ConfigDict):
+            value = ConfigDict(value)
+            self[key] = value
         return value
 
     def __setattr__(self, key, value):
-        self[key] = value
-    
+        self[key] = self._wrap(value)
+
+    def _wrap(self, value):
+        if isinstance(value, dict) and not isinstance(value, ConfigDict):
+            return ConfigDict(value)
+        return value
+
     def to_dict(self):
         result = {}
         for key, value in self.items():
@@ -19,6 +31,10 @@ class ConfigDict(dict):
                 result[key] = value
         return result
 
+    def update(self, *args, **kwargs):
+        other = dict(*args, **kwargs)
+        for key, value in other.items():
+            self[key] = self._wrap(value)
 
 def load_config(path):
     with open(path, "r") as f:
