@@ -1,8 +1,10 @@
 from src.models.cgcnn import CGCNN
+from src.models.cartnet import CartNet
 # from src.models.megnet import MEGNet
 
 MODEL_REGISTRY = {
     "cgcnn": CGCNN,
+    "cartnet": CartNet
     # "megnet": MEGNet,
     # "alignn": ALIGNN,
 }

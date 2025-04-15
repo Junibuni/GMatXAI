@@ -6,9 +6,8 @@ import torch
 import torch_geometric.nn as pyg_nn
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.graphgym.config import cfg
 from torch_scatter import scatter
-from models.utils import ExpNormalSmearing, CosineCutoff
+from src.models.utils import ExpNormalSmearing, CosineCutoff
 
 
 class CartNet(torch.nn.Module):
@@ -54,6 +53,7 @@ class CartNet(torch.nn.Module):
             layers.append(CartNet_layer(
                 dim_in=dim_in,
                 use_envelope=use_envelope,
+                radius=radius
             ))
         self.layers = torch.nn.Sequential(*layers)
 
@@ -71,6 +71,20 @@ class CartNet(torch.nn.Module):
         pred, true = self.head(batch)
         
         return pred,true
+    
+    @classmethod
+    def from_config(cls, config):
+        return cls(
+            dim_in=config.dim_in, 
+            dim_rbf=config.dim_rbf, 
+            num_layers=config.num_layers,
+            radius = config.get("radius", 5.0),
+            invariant = config.get("invariant", False),
+            temperature = config.get("temperature", False), 
+            use_envelope = config.get("use_envelope", True),
+            atom_types = config.get("atom_types", True),
+            cholesky = config.get("cholesky", True)
+        )
 
 class Encoder(torch.nn.Module):
     """
@@ -153,7 +167,7 @@ class Encoder(torch.nn.Module):
         if self.temperature or self.atom_types:
             batch.x = self.encoder_atom(x)
 
-        if cfg.invariant:
+        if self.invariant:
             batch.edge_attr = self.encoder_edge(self.rbf(batch.cart_dist))
         else:
             batch.edge_attr = self.encoder_edge(torch.cat([self.rbf(batch.cart_dist), batch.cart_dir], dim=-1))
@@ -178,7 +192,8 @@ class CartNet_layer(pyg_nn.conv.MessagePassing):
     """
     
     def __init__(self, 
-        dim_in: int, 
+        dim_in: int,
+        radius: float,
         use_envelope: bool = True
     ):
         super().__init__()
@@ -198,7 +213,7 @@ class CartNet_layer(pyg_nn.conv.MessagePassing):
         self.norm = nn.BatchNorm1d(dim_in)
         self.norm2 = nn.BatchNorm1d(dim_in)
         self.use_envelope = use_envelope
-        self.envelope = CosineCutoff(0, cfg.radius)
+        self.envelope = CosineCutoff(0, radius)
         
 
     def forward(self, batch):

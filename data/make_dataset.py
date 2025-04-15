@@ -202,6 +202,7 @@ def main():
             save_as_json(graph_data, material_id, props)
         except Exception as e:
             #print(f"Failed for {material_id}: {e}")
+            skipped_materials_cnt += 1
             continue
 
     print(f"Processed {len(docs) - skipped_materials_cnt}, Skipped {skipped_materials_cnt} materials.")
