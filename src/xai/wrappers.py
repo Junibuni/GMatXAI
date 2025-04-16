@@ -7,5 +7,5 @@ class CGCNNWrapper(nn.Module):
         self.model = model
 
     def forward(self, x, edge_index, edge_attr=None, batch=None, **kwargs):
-        data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, batch=batch)
+        data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, batch=batch, **kwargs)
         return self.model(data)
