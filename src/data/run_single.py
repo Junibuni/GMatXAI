@@ -1,5 +1,6 @@
 import os
 import yaml
+import time
 
 import matplotlib.pyplot as plt
 
@@ -80,7 +81,11 @@ def run_single_experiment(config_path: str, tag_override: str = None):
     )
 
     print(f"\nStart Training {tag} With { {k: cfg.training.get(k) for k in ['device', 'epochs', 'lr']} }")
+    start_time = time.time()
     best_model = trainer.train(num_epochs=cfg.training.epochs)
+    end_time = time.time()
+    print(f"Elapsed Time: {end_time-start_time:.2f} seconds")
+    
     save_model(best_model, ckpt_dir, cfg.experiment.model_name)
     trainer.export_logs_to_csv(os.path.join(log_dir, "log.csv"))
 
