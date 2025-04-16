@@ -64,6 +64,18 @@ def expand_optimizer_configs(optimizers):
             expanded_optimizers.append(new_opt)
     return expanded_optimizers
 
+def expand_scheduler_configs(schedulers):
+    expanded_schedulers = []
+    for sched in schedulers:
+        sweep_keys = [k for k, v in sched.items() if isinstance(v, list)]
+        sweep_vals = [sched[k] for k in sweep_keys]
+        for combo in itertools.product(*sweep_vals):
+            new_sched = deepcopy(sched)
+            for k, v in zip(sweep_keys, combo):
+                new_sched[k] = v
+            expanded_schedulers.append(new_sched)
+    return expanded_schedulers
+
 def generate_sweep_combinations(config):
     base_config = deepcopy(config)
     sweep_params = {}
@@ -74,9 +86,23 @@ def generate_sweep_combinations(config):
             if k in ["explain_material_ids", "target"]:
                 continue
             if k == "optimizer" and path == ("training",):
-                expanded = expand_optimizer_configs(v)
+                if isinstance(v, dict):
+                    optim_list = [v]
+                else:
+                    optim_list = v
+                expanded = expand_optimizer_configs(optim_list)
                 sweep_params[new_path] = expanded
                 continue
+
+            if k == "scheduler" and path == ("training",):
+                if isinstance(v, dict):
+                    sched_list = [v]
+                else:
+                    sched_list = v
+                expanded = expand_scheduler_configs(sched_list)
+                sweep_params[new_path] = expanded
+                continue
+
             if isinstance(v, list) and not any(isinstance(i, dict) for i in v):
                 sweep_params[new_path] = v
             elif isinstance(v, dict):
