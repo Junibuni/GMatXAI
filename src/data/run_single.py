@@ -13,6 +13,7 @@ from src.utils.seed import set_seed
 from src.utils.data import sample_explanation_data
 from src.xai.wrappers import CGCNNWrapper
 from src.xai.batch_explainer import explain_batch
+from src.utils.analysis.parity_plot import plot_parity
 
 
 def create_output_dirs(tag, root="outputs"):
@@ -112,6 +113,9 @@ def run_single_experiment(config_path: str, tag_override: str = None):
         algorithm="gnn_explainer"
     )
 
+    print("\nPlot Parity")
+    plot_parity(model, test_loader, log_dir)
+    
     with open(os.path.join(log_dir, "config.yaml"), "w") as f:
         yaml.dump(cfg.to_dict(), f)
 
