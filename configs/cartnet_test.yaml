@@ -20,6 +20,12 @@ model:
   temperature: false
   atom_types: false
   cholesky: false
+  jk_mode: last
+  layer_type: transformer
+  dim_hidden: 128
+  use_residual: true
+  num_heads: 4
+
 
 training:
   device: cuda
