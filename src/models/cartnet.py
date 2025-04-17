@@ -81,7 +81,7 @@ class CartNet(torch.nn.Module):
                 'use_residual': use_residual,
                 'dim_hidden': dim_hidden
             })
-        else:
+        elif layer_type == 'default':
             layer_kwargs.update({
                 'use_envelope': use_envelope
             })
@@ -344,16 +344,16 @@ class PositionalEncoding(nn.Module):
         self.pos_mlp = nn.Sequential(
             nn.Linear(1 + 3, dim_edge),
             nn.SiLU(),
-            nn.Linear(dim_edge, 1)
+            nn.Linear(dim_edge, dim_edge)  # Output dim_edge instead of 1
         )
-
     def forward(self, dist, direction):
-        pos = torch.cat([dist.unsqueeze(-1), direction], dim=-1)  # [n_edges, 4]
-        return self.pos_mlp(pos).squeeze(-1)  # [n_edges]
+        pos = torch.cat([dist.unsqueeze(-1), direction], dim=-1)
+        return self.pos_mlp(pos)
     
 class CartNetTransformerLayer(pyg_nn.conv.MessagePassing):
     def __init__(self, dim_in, dim_hidden, radius, num_heads=4, use_residual=True):
         super().__init__(aggr=None)
+        self.dropout = nn.Dropout(0.1)
         self.dim_in = dim_in
         self.dim_hidden = dim_hidden
         self.num_heads = num_heads
@@ -383,14 +383,14 @@ class CartNetTransformerLayer(pyg_nn.conv.MessagePassing):
         v_input = torch.cat([x_j, e], dim=-1)
         v_all = self.v_proj(v_input)  # [1399, 128]
 
-        pos_bias = self.pos_encoder(dist, direction).view(-1, 1)
+        pos_encoding = self.pos_encoder(dist, direction)
 
         x_out = self.propagate(
             edge_index=edge_index,
             q_all=q_all,
             k_all=k_all,
             v_all=v_all,
-            pos_bias=pos_bias,
+            pos_encoding=pos_encoding,
             size=(x.size(0), x.size(0))
         )
 
@@ -403,15 +403,18 @@ class CartNetTransformerLayer(pyg_nn.conv.MessagePassing):
 
         return batch
 
-    def message(self, q_all_i, k_all_j, v_all, pos_bias):
+    def message(self, q_all_i, k_all_j, v_all, pos_encoding):
         # reshape here to [n_edges, num_heads, head_dim]
         q_i = q_all_i.view(-1, self.num_heads, self.head_dim)
         k_j = k_all_j.view(-1, self.num_heads, self.head_dim)
         v = v_all.view(-1, self.num_heads, self.head_dim)
 
-        score = (q_i * k_j).sum(dim=-1) / self.head_dim ** 0.5
-        score = score + pos_bias
-        attn = F.softmax(score, dim=0)
+        pos_encoding = pos_encoding.unsqueeze(1)  # [n_edges, 1, head_dim]
+        k_j = k_j + pos_encoding  # [n_edges, num_heads, head_dim]
+
+        # Compute attention scores
+        score = (q_i * k_j).sum(dim=-1) / self.head_dim ** 0.5  # [n_edges, num_heads]
+        attn = F.softmax(score, dim=-2)  # Normalize over edges per head
 
         return (attn.unsqueeze(-1) * v).reshape(-1, self.dim_hidden)
 
