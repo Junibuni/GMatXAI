@@ -43,6 +43,7 @@ def run_single_experiment(config_path: str, tag_override: str = None):
         num_workers=cfg.data.num_workers,
         train_ratio=cfg.data.train_ratio,
         val_ratio=cfg.data.val_ratio,
+        jitter_std=cfg.data.jitter_std,
         seed=cfg.data.seed
     )
 
