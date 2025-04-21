@@ -74,13 +74,14 @@ def run_single_experiment(config_path: str, tag_override: str = None):
         model=model,
         train_loader=train_loader,
         val_loader=val_loader,
+        test_loader=test_loader,
         optimizer=optimizer,
         scheduler=scheduler,
         device=cfg.training.device,
         log_dir=log_dir,
     )
 
-    print(f"\nStart Training {tag} With { {k: cfg.training.get(k) for k in ['device', 'epochs', 'lr']} }")
+    print(f"\nStart Training {tag} With { {k: cfg.training.get(k) for k in ['device', 'epochs', 'lr']} }", end="\n\n")
     start_time = time.time()
     best_model = trainer.train(num_epochs=cfg.training.epochs)
     end_time = time.time()
@@ -91,8 +92,8 @@ def run_single_experiment(config_path: str, tag_override: str = None):
 
     print("\nFinal Evaluation")
     model.load_state_dict(best_model)
-    trainer.test(test_loader, metric="mae")
-    trainer.test(test_loader, metric="rmse")
+    trainer.test(metric="mae")
+    trainer.test(metric="rmse")
 
     print("\nSave Loss Curve")
     plt.figure()
@@ -111,7 +112,6 @@ def run_single_experiment(config_path: str, tag_override: str = None):
         model=CGCNNWrapper(model),
         data_list=selected_data,
         save_dir=explain_dir,
-        device=cfg.training.device,
         epochs=100,
         edge_threshold=0.3,
         scale_node_size=True,
@@ -119,7 +119,7 @@ def run_single_experiment(config_path: str, tag_override: str = None):
     )
 
     print("\nPlot Parity")
-    plot_parity(model, test_loader, log_dir)
+    plot_parity(model, test_loader, log_dir, device=cfg.training.device)
     
     with open(os.path.join(log_dir, "config.yaml"), "w") as f:
         yaml.dump(cfg.to_dict(), f)

@@ -10,6 +10,7 @@ def plot_parity(
     save_path: str, 
     device: str = "cpu"
 ):
+    model.to(device)
     model.eval()
     preds = []
     trues = []

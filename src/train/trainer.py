@@ -12,6 +12,7 @@ class Trainer:
         model,
         train_loader,
         val_loader,
+        test_loader,
         optimizer,
         log_dir,
         device="cpu",
@@ -22,6 +23,7 @@ class Trainer:
         self.model = model.to(device)
         self.train_loader = train_loader
         self.val_loader = val_loader
+        self.test_loader = test_loader
         self.optimizer = optimizer
         self.device = device
         self.loss_fn = loss_fn
@@ -124,13 +126,13 @@ class Trainer:
         print(f"Best Validation MAE: {best_val_mae:.4f}")
         return best_model
         
-    def test(self, test_loader, metric='mae'):
+    def test(self, metric='mae'):
         self.model.eval()
         preds = []
         targets = []
 
         with torch.no_grad():
-            for batch in tqdm(test_loader, desc="Testing", leave=False):
+            for batch in tqdm(self.test_loader, desc="Testing", leave=False):
                 batch = batch.to(self.device)
                 pred = self.model(batch)
                 preds.append(pred.cpu())

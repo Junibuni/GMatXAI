@@ -1,6 +1,7 @@
 import os
 import random
 
+from torch.utils.data import Subset
 from torch_geometric.loader import DataLoader
 from src.data.graph_dataset import MaterialsGraphDataset
 
@@ -32,9 +33,9 @@ def get_loaders(
     dataset = MaterialsGraphDataset(data_dir, target=target)
     train_idx, val_idx, test_idx = split_dataset(dataset, train_ratio, val_ratio, seed)
 
-    train_set = [dataset[i] for i in train_idx]
-    val_set = [dataset[i] for i in val_idx]
-    test_set = [dataset[i] for i in test_idx]
+    train_set = Subset(dataset, train_idx)
+    val_set = Subset(dataset, val_idx)
+    test_set = Subset(dataset, test_idx)
     print(f"Total {len(dataset)} Data: Train({len(train_set)}) / Val({len(val_set)}) / Test({len(test_set)})")
 
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers)
