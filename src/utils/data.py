@@ -9,6 +9,7 @@ def sample_explanation_data(test_dataset, material_ids=None, k=3):
         if needed > 0 and len(remaining) >= needed:
             selected += random.sample(remaining, k=needed)
     else:
-        selected = random.sample(test_dataset, k=min(k, len(test_dataset)))
+        indices = random.sample(range(len(test_dataset)), k=min(k, len(test_dataset)))
+        selected = [test_dataset[i] for i in indices]
 
     return selected

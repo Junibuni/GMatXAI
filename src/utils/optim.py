@@ -30,6 +30,9 @@ def get_scheduler(scheduler_type: str, optimizer, **kwargs):
 
     if scheduler_type == "step":
         step_size = kwargs.get("step_size")
+        if step_size == 0:
+            step_size = kwargs.get("steps_per_epoch")
+            
         gamma = kwargs.get("gamma", 0.1)
 
         if step_size is None:

@@ -7,6 +7,7 @@ import torch_geometric.nn as pyg_nn
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_scatter import scatter
+from torch_geometric.nn import JumpingKnowledge
 from src.models.utils import ExpNormalSmearing, CosineCutoff
 
 
@@ -22,6 +23,11 @@ class CartNet(torch.nn.Module):
         temperature (bool, optional): If `True`, includes temperature information in the encoder. Default is `True`.
         use_envelope (bool, optional): If `True`, applies an envelope function to the interactions. Default is `True`.
         cholesky (bool, optional): If `True`, uses a Cholesky head for the output. If `False`, uses a scalar head. Default is `True`.
+        jk_mode (str, optional): Jumping knowledge aggregation strategy. One of ['cat', 'lstm', 'max', 'last']. Default is `'concat'`.
+        layer_type (str, optional): Layer architecture type. One of ['transformer', 'default']. `'transformer'` enables Q/K/V attention with optional residuals. Default is `'transformer'`.
+        use_residual (bool, optional): If `True`, adds residual connections in Transformer layers. Only applies when `layer_type='transformer'`. Default is `True`.
+        num_heads (int, optional): Number of attention heads for Transformer-style layers. Only applies when `layer_type='transformer'`. Default is 4.
+
     Methods:
         forward(batch):
             Performs a forward pass of the model.
@@ -42,35 +48,74 @@ class CartNet(torch.nn.Module):
         temperature: bool = True, 
         use_envelope: bool = True,
         atom_types: bool = True,
-        cholesky: bool = True):
+        cholesky: bool = True,
+        jk_mode='cat',
+        layer_type='transformer',       # NEW: 'transformer' or 'default'
+        dim_hidden=128,
+        use_residual=True,              # NEW: only applies if layer_type == 'transformer'
+        num_heads=4):                   # NEW: only applies if layer_type == 'transformer'
+        
         super().__init__()
-    
-        self.encoder = Encoder(dim_in, dim_rbf=dim_rbf, radius=radius, invariant=invariant, temperature=temperature, atom_types=atom_types)
+        LAYER_FACTORY = {
+            'transformer': CartNetTransformerLayer,
+            'default': CartNet_layer
+        }
+        self.encoder = Encoder(dim_in, dim_rbf, radius, invariant, temperature, atom_types)
         self.dim_in = dim_in
+        self.cholesky = cholesky
+        self.jk_mode = jk_mode
+        self.layer_type = layer_type
+        self.use_residual = use_residual
+        self.num_heads = num_heads
 
-        layers = []
-        for _ in range(num_layers):
-            layers.append(CartNet_layer(
-                dim_in=dim_in,
-                use_envelope=use_envelope,
-                radius=radius
-            ))
-        self.layers = torch.nn.Sequential(*layers)
+        LayerClass = LAYER_FACTORY[layer_type]
+        layer_kwargs = {
+            'dim_in': dim_in,
+            'radius': radius
+        }
+
+        if layer_type == 'transformer':
+            layer_kwargs.update({
+                'dim_hidden': dim_in,
+                'num_heads': num_heads,
+                'use_residual': use_residual,
+                'dim_hidden': dim_hidden
+            })
+        elif layer_type == 'default':
+            layer_kwargs.update({
+                'use_envelope': use_envelope
+            })
+
+        self.layers = nn.ModuleList([LayerClass(**layer_kwargs) for _ in range(num_layers)])
+
+        if jk_mode in ['cat', 'max', 'lstm']:
+            self.jk = JumpingKnowledge(mode=jk_mode)
+            jk_dim = dim_in * num_layers if jk_mode == 'cat' else dim_in
+        elif jk_mode == 'last':
+            self.jk = None  # no JumpingKnowledge module
+            jk_dim = dim_in
+        else:
+            raise ValueError(f"Invalid jk_mode: {jk_mode}. Choose from ['cat', 'max', 'lstm', 'last']")
 
         if cholesky:
-            self.head = Cholesky_head(dim_in)
+            self.head = Cholesky_head(jk_dim)
         else:
-            self.head = Scalar_head(dim_in)
-        
+            self.head = Scalar_head(jk_dim)
+
     def forward(self, batch):
         batch = self.encoder(batch)
+        x_layers = []
 
         for layer in self.layers:
             batch = layer(batch)
-        
-        pred = self.head(batch)
-        
-        return pred
+            x_layers.append(batch.x)
+
+        if self.jk is not None:
+            batch.x = self.jk(x_layers)
+        else:
+            batch.x = x_layers[-1]
+
+        return self.head(batch)
     
     @classmethod
     def from_config(cls, config):
@@ -83,7 +128,12 @@ class CartNet(torch.nn.Module):
             temperature = config.get("temperature", False), 
             use_envelope = config.get("use_envelope", True),
             atom_types = config.get("atom_types", True),
-            cholesky = config.get("cholesky", True)
+            cholesky = config.get("cholesky", True),
+            jk_mode=config.get("jk_mode", 'cat'),
+            layer_type=config.get("layer_type",' transformer'),
+            dim_hidden=config.get("dim_hidden", 128),
+            use_residual=config.get("use_residual", True),
+            num_heads=config.get("num_heads", 4)
         )
 
 class Encoder(torch.nn.Module):
@@ -287,6 +337,92 @@ class CartNet_layer(pyg_nn.conv.MessagePassing):
         del self.e
 
         return x, e_out
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, dim_edge):
+        super().__init__()
+        self.pos_mlp = nn.Sequential(
+            nn.Linear(1 + 3, dim_edge),
+            nn.SiLU(),
+            nn.Linear(dim_edge, dim_edge)  # Output dim_edge instead of 1
+        )
+    def forward(self, dist, direction):
+        pos = torch.cat([dist.unsqueeze(-1), direction], dim=-1)
+        return self.pos_mlp(pos)
+    
+class CartNetTransformerLayer(pyg_nn.conv.MessagePassing):
+    def __init__(self, dim_in, dim_hidden, radius, num_heads=4, use_residual=True):
+        super().__init__(aggr=None)
+        self.dropout = nn.Dropout(0.1)
+        self.dim_in = dim_in
+        self.dim_hidden = dim_hidden
+        self.num_heads = num_heads
+        self.head_dim = dim_hidden // num_heads
+        self.use_residual = use_residual
+
+        assert dim_hidden % num_heads == 0, f"dim_hidden({dim_hidden}) must be divisible by num_heads({num_heads})"
+
+        # Q/K/V projection
+        self.q_proj = nn.Linear(dim_in, dim_hidden)
+        self.k_proj = nn.Linear(dim_in, dim_hidden)
+        self.v_proj = nn.Linear(dim_in * 2, dim_hidden)
+
+        self.out_proj = nn.Linear(dim_hidden, dim_in)
+
+        self.pos_encoder = PositionalEncoding(self.head_dim)
+        self.norm = nn.BatchNorm1d(dim_in)
+
+    def forward(self, batch):
+        x, e = batch.x, batch.edge_attr
+        dist, direction = batch.cart_dist, batch.cart_dir
+        edge_index = batch.edge_index
+
+        q_all = self.q_proj(x)  # [618, 128]
+        k_all = self.k_proj(x)  # [618, 128]
+        x_j = x[edge_index[1]]
+        v_input = torch.cat([x_j, e], dim=-1)
+        v_all = self.v_proj(v_input)  # [1399, 128]
+
+        pos_encoding = self.pos_encoder(dist, direction)
+
+        x_out = self.propagate(
+            edge_index=edge_index,
+            q_all=q_all,
+            k_all=k_all,
+            v_all=v_all,
+            pos_encoding=pos_encoding,
+            size=(x.size(0), x.size(0))
+        )
+
+        x_out = self.out_proj(x_out)
+
+        if self.use_residual:
+            batch.x = self.norm(x + F.silu(x_out))
+        else:
+            batch.x = F.silu(x_out)
+
+        return batch
+
+    def message(self, q_all_i, k_all_j, v_all, pos_encoding):
+        # reshape here to [n_edges, num_heads, head_dim]
+        q_i = q_all_i.view(-1, self.num_heads, self.head_dim)
+        k_j = k_all_j.view(-1, self.num_heads, self.head_dim)
+        v = v_all.view(-1, self.num_heads, self.head_dim)
+
+        pos_encoding = pos_encoding.unsqueeze(1)  # [n_edges, 1, head_dim]
+        k_j = k_j + pos_encoding  # [n_edges, num_heads, head_dim]
+
+        # Compute attention scores
+        score = (q_i * k_j).sum(dim=-1) / self.head_dim ** 0.5  # [n_edges, num_heads]
+        attn = F.softmax(score, dim=-2)  # Normalize over edges per head
+
+        return (attn.unsqueeze(-1) * v).reshape(-1, self.dim_hidden)
+
+    def aggregate(self, inputs, index, ptr=None, dim_size=None):
+        return scatter(inputs, index, dim=0, dim_size=dim_size, reduce='sum')
+
+    def update(self, aggr_out):
+        return aggr_out
 
 class Cholesky_head(torch.nn.Module):
     """

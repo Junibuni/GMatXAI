@@ -8,7 +8,9 @@ from tqdm import tqdm
 from dotenv import load_dotenv 
 
 import numpy as np
+from jarvis.db.figshare import data as load_jarvis_data
 from mp_api.client import MPRester
+from pymatgen.core import Structure
 from pymatgen.analysis.graphs import StructureGraph
 from pymatgen.analysis.local_env import (
     CrystalNN,
@@ -20,6 +22,7 @@ load_dotenv(verbose=True)
 
 MAPI = os.getenv('MAPI')
 SAVE_DIR = "data/processed"
+RAW_DIR = "data/raw"
 TARGET_PROPERTIES = ["formation_energy_per_atom", "band_gap"]
 AVAILABLE_FIELDS = """
     ['builder_meta', 'nsites', 'elements', 'nelements', 'composition', 'composition_reduced', 'formula_pretty', 'formula_anonymous', 'chemsys', 'volume', 'density', 'density_atomic', 'symmetry', 'property_name', 'material_id', 'deprecated', 'deprecation_reasons', 'last_updated', 'origins', 'warnings', 'structure', 'task_ids', 'uncorrected_energy_per_atom', 'energy_per_atom', 'formation_energy_per_atom', 'energy_above_hull', 'is_stable', 'equilibrium_reaction_energy_per_atom', 'decomposes_to', 'xas', 'grain_boundaries', 'band_gap', 'cbm', 'vbm', 'efermi', 'is_gap_direct', 'is_metal', 'es_source_calc_id', 'bandstructure', 'dos', 'dos_energy_up', 'dos_energy_down', 'is_magnetic', 'ordering', 'total_magnetization', 'total_magnetization_normalized_vol', 'total_magnetization_normalized_formula_units', 'num_magnetic_sites', 'num_unique_magnetic_sites', 'types_of_magnetic_species', 'bulk_modulus', 'shear_modulus', 'universal_anisotropy', 'homogeneous_poisson', 'e_total', 'e_ionic', 'e_electronic', 'n', 'e_ij_max', 'weighted_surface_energy_EV_PER_ANG2', 'weighted_surface_energy', 'weighted_work_function', 'surface_anisotropy', 'shape_factor', 'has_reconstructed', 'possible_species', 'has_props', 'theoretical', 'database_IDs']
@@ -69,6 +72,106 @@ def get_existing_ids():
         if fname.endswith(".json")
     }
 
+def jarvis_atoms_to_structure(atoms_dict):
+    """
+    JARVIS 'atoms' dict --> pymatgen Structure
+    """
+    lattice = atoms_dict["lattice_mat"]
+    coords = atoms_dict["coords"]
+    species = atoms_dict["elements"]
+
+    structure = Structure(
+        lattice,
+        species,
+        coords,
+        coords_are_cartesian=True
+    )
+    return structure
+
+def process_jarvis_dataset(jarvis_list, existing_ids, mp_formulas=None, target_properties=None, nn_strategy=None, fallback_nn=None):
+    skipped = 0
+    processed = 0
+    pbar = tqdm(jarvis_list, desc="Processing JARVIS")
+
+    for entry in pbar:
+        jid = entry.get("jid")
+        formula = entry.get("formula")
+        
+        if jid in existing_ids:
+            skipped += 1
+            continue
+        if mp_formulas and formula in mp_formulas:
+            skipped += 1
+            continue
+
+        try:
+            structure = jarvis_atoms_to_structure(entry["atoms"])
+            graph_data = structure_to_graph_data_with_fallback(
+                structure,
+                primary_nn=nn_strategy,
+                fallback_nn=fallback_nn,
+                max_num_sites=50,
+                pbc=True
+            )
+
+            props = {
+                "formation_energy_per_atom": float(entry.get("formation_energy_peratom", "nan")),
+                "band_gap": float(entry.get("optb88vdw_bandgap", "nan"))
+            }
+
+            save_as_json(graph_data, jid, props)
+            processed += 1
+        except Exception:
+            skipped += 1
+            continue
+
+    print(f"[JARVIS] Processed {processed}, Skipped {skipped}")
+
+def process_mp_dataset(api_key, existing_ids, nn_strategy, target_properties, num_entries=None):
+    """
+    Materials Project 데이터를 불러오고 구조를 그래프로 변환해 저장
+    """
+    docs = fetch_structures_in_batches(
+        api_key=api_key,
+        total_limit=num_entries,
+        target_properties=target_properties,
+        chunk_size=500
+    )
+
+    mp_formulas = set()
+    skipped = 0
+    processed = 0
+
+    pbar = tqdm(docs, desc="Processing MP", leave=False)
+    for doc in pbar:
+        material_id = doc.material_id
+        if material_id in existing_ids:
+            skipped += 1
+            continue
+
+        structure = doc.structure
+        props = {
+            key: getattr(doc, key, None)
+            for key in TARGET_PROPERTIES
+        }
+
+        try:
+            graph_data = structure_to_graph_data_with_fallback(
+                structure,
+                primary_nn=nn_strategy,
+                fallback_nn=MinimumDistanceNN(),
+                max_num_sites=50,
+                pbc=True
+            )
+            save_as_json(graph_data, material_id, props)
+            mp_formulas.add(doc.formula_pretty)
+            processed += 1
+        except Exception:
+            skipped += 1
+            continue
+
+    print(f"[MP] Processed {processed}, Skipped {skipped}")
+    return mp_formulas
 
 def structure_to_graph_data_with_fallback(structure, primary_nn, fallback_nn, max_num_sites=40, pbc=True):
     """
@@ -166,46 +269,28 @@ def main():
     
     existing_ids = get_existing_ids()
 
-    docs = fetch_structures_in_batches(
-        api_key=MAPI,
-        total_limit=args.num_entries,
-        target_properties=args.target,
-        chunk_size=500
-    )
-
     nn_strategy = get_nn_strategy(args.nn_strategy)
     
-    skipped_materials_cnt = 0
-    pbar = tqdm(docs, leave=False)
-    for doc in pbar:
-        material_id = doc.material_id
-        if material_id in existing_ids:
-            # print(f"{material_id} already exists.")
-            skipped_materials_cnt += 1
-            continue
-        pbar.set_description(f"Processing {material_id}")
-        structure = doc.structure
+    mp_formulas = process_mp_dataset(
+        api_key=MAPI,
+        existing_ids=existing_ids,
+        nn_strategy=nn_strategy,
+        target_properties=args.target,
+        num_entries=args.num_entries
+    )
+    
+    jarvis_data = load_jarvis_data("dft_3d", store_dir=RAW_DIR)
+    print(f"Loaded {len(jarvis_data)} JARVIS entries")
 
-        props = {
-            key: getattr(doc, key, None)
-            for key in TARGET_PROPERTIES
-        }
+    process_jarvis_dataset(
+        jarvis_list=jarvis_data,
+        existing_ids=existing_ids,
+        mp_formulas=mp_formulas,
+        target_properties=args.target,
+        nn_strategy=nn_strategy,
+        fallback_nn=MinimumDistanceNN()
+    )
 
-        try:
-            graph_data = structure_to_graph_data_with_fallback(
-                structure,
-                primary_nn=nn_strategy,
-                fallback_nn=MinimumDistanceNN(),
-                max_num_sites=50,
-                pbc=True
-            )
-            save_as_json(graph_data, material_id, props)
-        except Exception as e:
-            #print(f"Failed for {material_id}: {e}")
-            skipped_materials_cnt += 1
-            continue
-
-    print(f"Processed {len(docs) - skipped_materials_cnt}, Skipped {skipped_materials_cnt} materials.")
 
 if __name__ == "__main__":
     main()
