@@ -42,13 +42,13 @@ def atom_to_onehot(atom):
 class MaterialsGraphDataset(Dataset):
     """JSON → PyG Data object"""
 
-    def __init__(self, data_dir, target=None):
+    def __init__(self, data_dir, target=None, prefixes=None):
         self.data_dir = data_dir
         self.target_key = target
         self.file_list = [
             os.path.join(data_dir, fname)
             for fname in os.listdir(data_dir)
-            if fname.endswith(".json")
+            if fname.endswith(".json") and (prefixes is None or any(fname.startswith(p) for p in prefixes))
         ]
 
     def __len__(self):

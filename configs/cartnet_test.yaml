@@ -15,22 +15,22 @@ data:
 model:
   dim_in: 118
   dim_rbf: 16
-  num_layers: 5
-  radius: 5.0
+  num_layers: 3
+  radius: 8.0
   invariant: false
   temperature: false
   atom_types: false
   cholesky: false
   jk_mode: last
-  layer_type: transformer
-  dim_hidden: 128
+  layer_type: default
+  dim_hidden: 64
   use_residual: true
   num_heads: 4
 
 
 training:
   device: cuda
-  epochs: 1500
+  epochs: 800
   lr: 0.001
 
   optimizer:
