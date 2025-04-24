@@ -9,22 +9,22 @@ data:
   num_workers: 0
   train_ratio: 0.8
   val_ratio: 0.1
-  onehot: true
+  onehot: false
   jitter_std: 0.01
   seed: 42
 
 model:
   dim_in: 118
   dim_rbf: 16
-  num_layers: 3
-  radius: 8.0
+  num_layers: 5
+  radius: 10.0
   invariant: false
   temperature: false
-  atom_types: false
+  atom_types: true
   cholesky: false
   jk_mode: last
   layer_type: default
-  dim_hidden: 64
+  dim_hidden: 128
   use_residual: true
   num_heads: 4
 

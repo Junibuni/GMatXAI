@@ -42,9 +42,10 @@ def atom_to_onehot(atom):
 class MaterialsGraphDataset(Dataset):
     """JSON → PyG Data object"""
 
-    def __init__(self, data_dir, target=None, prefixes=None):
+    def __init__(self, data_dir, target=None, prefixes=None, onehot=False):
         self.data_dir = data_dir
         self.target_key = target
+        self.is_onehot = onehot
         self.file_list = [
             os.path.join(data_dir, fname)
             for fname in os.listdir(data_dir)
@@ -67,7 +68,11 @@ class MaterialsGraphDataset(Dataset):
         cart_directions = item["graph"]["cart_dir"]
         props = item["properties"]
 
-        x = torch.stack([atom_to_onehot(atom) for atom in nodes])
+        if self.is_onehot:
+            x = torch.stack([atom_to_onehot(atom) for atom in nodes])
+        else:
+            x = torch.tensor([ATOM_TYPES.index(extract_atom_specie(atom)) for atom in nodes], dtype=torch.long)
+            
         edge_index = torch.tensor(edges, dtype=torch.long).t().contiguous()
         edge_attr = torch.ones(edge_index.size(1), 1)
         cart_dist = torch.tensor(cart_distances, dtype=torch.float)
