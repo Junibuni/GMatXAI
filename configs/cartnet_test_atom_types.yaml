@@ -17,7 +17,7 @@ model:
   dim_in: 118
   dim_rbf: 16
   num_layers: 5
-  radius: 10.0
+  radius: 8.0
   invariant: false
   temperature: false
   atom_types: true
@@ -40,5 +40,5 @@ training:
 
   scheduler:
     name: onecycle
-    max_lr: 0.005
+    max_lr: 0.003
     pct_start: 0.1
