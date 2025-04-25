@@ -35,8 +35,10 @@ def plot_parity(
     max_val = max(trues.max(), preds.max())
     plt.plot([min_val, max_val], [min_val, max_val], 'k-', label="y = x")
 
-    plt.xlabel("True")
-    plt.ylabel("Predicted")
+    # plt.xlabel("True")
+    # plt.ylabel("Predicted")
+    plt.xlabel(r'$\mathrm{DFT E_f\ per\ atom\ (eV/atom)}$')
+    plt.ylabel(r'$\mathrm{Predicted E_f\ per\ atom\ (eV/atom)}$')
     plt.axis("equal")
 
     plt.text(
