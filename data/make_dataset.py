@@ -88,7 +88,7 @@ def jarvis_atoms_to_structure(atoms_dict):
     )
     return structure
 
-def process_jarvis_dataset(jarvis_list, existing_ids, mp_formulas=None, target_properties=None, nn_strategy=None, fallback_nn=None):
+def process_jarvis_dataset(jarvis_list, existing_ids, mp_formulas=None, target_properties=None, nn_strategy=None, fallback_nn=None, max_num_sites=50):
     skipped = 0
     processed = 0
     pbar = tqdm(jarvis_list, desc="Processing JARVIS")
@@ -110,7 +110,7 @@ def process_jarvis_dataset(jarvis_list, existing_ids, mp_formulas=None, target_p
                 structure,
                 primary_nn=nn_strategy,
                 fallback_nn=fallback_nn,
-                max_num_sites=50,
+                max_num_sites=max_num_sites,
                 pbc=True
             )
 
@@ -127,7 +127,7 @@ def process_jarvis_dataset(jarvis_list, existing_ids, mp_formulas=None, target_p
 
     print(f"[JARVIS] Processed {processed}, Skipped {skipped}")
 
-def process_mp_dataset(api_key, existing_ids, nn_strategy, target_properties, num_entries=None):
+def process_mp_dataset(api_key, existing_ids, nn_strategy, target_properties, num_entries=None, max_num_sites=50):
     """
     Materials Project 데이터를 불러오고 구조를 그래프로 변환해 저장
     """
@@ -160,7 +160,7 @@ def process_mp_dataset(api_key, existing_ids, nn_strategy, target_properties, nu
                 structure,
                 primary_nn=nn_strategy,
                 fallback_nn=MinimumDistanceNN(),
-                max_num_sites=50,
+                max_num_sites=max_num_sites,
                 pbc=True
             )
             save_as_json(graph_data, material_id, props)
@@ -173,7 +173,7 @@ def process_mp_dataset(api_key, existing_ids, nn_strategy, target_properties, nu
     print(f"[MP] Processed {processed}, Skipped {skipped}")
     return mp_formulas
 
-def structure_to_graph_data_with_fallback(structure, primary_nn, fallback_nn, max_num_sites=40, pbc=True):
+def structure_to_graph_data_with_fallback(structure, primary_nn, fallback_nn, max_num_sites=50, pbc=True):
     """
     Structure → 그래프 dict (노드/엣지 목록)
     """
@@ -227,7 +227,6 @@ def structure_to_graph_data_with_fallback(structure, primary_nn, fallback_nn, ma
 
 
 def save_as_json(graph_data, material_id, props):
-    os.makedirs(SAVE_DIR, exist_ok=True)
     out_path = os.path.join(SAVE_DIR, f"{material_id}.json")
 
     payload = {
@@ -259,6 +258,12 @@ def main():
         default=['formation_energy_per_atom', 'band_gap'],
         help='Target properties (default: formation_energy_per_atom band_gap)'
     )
+
+    parser.add_argument(
+        '--max_sites',
+        type=int,
+        default=50
+    )
     
     args = parser.parse_args()
     # CGCNN radius not defined
@@ -267,6 +272,9 @@ def main():
     print(f"Fetching {args.num_entries if args.num_entries else 'all available'} structures using '{args.nn_strategy}' strategy")
     print(f"Target Properties: {args.target}")
     
+    os.makedirs(SAVE_DIR, exist_ok=True)
+    os.makedirs(RAW_DIR, exist_ok=True)
+
     existing_ids = get_existing_ids()
 
     nn_strategy = get_nn_strategy(args.nn_strategy)
@@ -276,7 +284,8 @@ def main():
         existing_ids=existing_ids,
         nn_strategy=nn_strategy,
         target_properties=args.target,
-        num_entries=args.num_entries
+        num_entries=args.num_entriesx,
+        max_num_sites=args.max_sites
     )
     
     jarvis_data = load_jarvis_data("dft_3d", store_dir=RAW_DIR)
@@ -288,7 +297,8 @@ def main():
         mp_formulas=mp_formulas,
         target_properties=args.target,
         nn_strategy=nn_strategy,
-        fallback_nn=MinimumDistanceNN()
+        fallback_nn=MinimumDistanceNN(),
+        max_num_sites=args.max_sites
     )
 
 
