@@ -50,7 +50,7 @@ def get_loaders(
         shuffle=True,
         num_workers=num_workers,
         pin_memory=torch.cuda.is_available(),
-        drop_last=False
+        drop_last=True
     )
     val_loader = DataLoader(
         val_dataset,

@@ -10,14 +10,14 @@ data:
   train_ratio: 0.8
   val_ratio: 0.1
   onehot: false
-  jitter_std: 0.01
+  jitter_std: [0.0, 0.01, 0.03]
   seed: 42
 
 model:
   dim_in: 118
   dim_rbf: 16
-  num_layers: 5
-  radius: 8.0
+  num_layers: [3, 5, 7]
+  radius: [5.0, 8.0, 16.0]
   invariant: false
   temperature: false
   atom_types: true
@@ -31,7 +31,7 @@ model:
 
 training:
   device: cuda
-  epochs: 800
+  epochs: 1000
   lr: 0.001
 
   optimizer:
