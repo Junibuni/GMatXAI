@@ -37,37 +37,39 @@ class UniCrystalFormerLayer(nn.Module):
         )
         self.crossmix = CrossMix(hidden_dim)
 
-    def forward(self, batch):
-        x_c = batch.x
+    def forward(self, batch_cart, batch_mat):
+        cartnet_batch = self.cartnet(batch_cart)
+        x_cart = cartnet_batch.x
 
-        batch = self.cartnet(batch)
-        x_cart = batch.x
-
-        x_mat = self.matformer(x_c, batch.edge_index, batch.edge_attr)
+        x_mat = self.matformer(batch_mat.x, batch_mat.edge_index, batch_mat.edge_attr)
 
         x_out = self.crossmix(x_cart, x_mat)
 
-        batch.x = x_out + x_c
-        return batch
+        batch_cart.x = x_out + x_cart
+        batch_mat.x = x_out + x_mat
+        
+        return batch_cart, batch_mat
 
 class UniCrystalFormer(nn.Module):
     def __init__(self,
         conv_layers: int = 5,
         atom_input_features: int = 92,
         edge_features: int = 128,
-        node_features: int = 128,
+        hidden_dim: int = 128,
         fc_features: int = 128,
         output_features: int = 1,
         node_layer_head: int = 4,
         link: Literal["identity", "log", "logit"] = "identity",
         zero_inflated: bool = False,
+        dropout=0.1,
+        radius=8.0
         ):
         super().__init__()
         self.zero_inflated = zero_inflated
         self.conv_layers = conv_layers
         # CGCNN style atom embedding
         self.atom_embedding = nn.Linear(
-            atom_input_features, node_features
+            atom_input_features, hidden_dim
         )
         self.rbf = nn.Sequential(
             RBFExpansion(
@@ -75,27 +77,26 @@ class UniCrystalFormer(nn.Module):
                 vmax=8.0,
                 bins=edge_features,
             ),
-            nn.Linear(edge_features, node_features),
+            nn.Linear(edge_features, hidden_dim),
             nn.Softplus(),
-            nn.Linear(node_features, node_features),
+            nn.Linear(hidden_dim, hidden_dim),
         )
 
         self.att_layers = nn.ModuleList(
             [
-                MatformerConv(in_channels=node_features, out_channels=node_features, heads=node_layer_head, edge_dim=node_features)
+                UniCrystalFormerLayer(hidden_dim, radius, node_layer_head, edge_features=hidden_dim)
                 for _ in range(conv_layers)
             ]
         )
 
-        self.fc = nn.Sequential(
-            nn.Linear(node_features, fc_features), 
-            nn.SiLU()
+        self.fc_readout = nn.Sequential(
+            nn.Linear(hidden_dim, fc_features), 
+            nn.SiLU(),
+            nn.Dropout(dropout),
+            nn.Linear(fc_features, output_features)
         )
         self.sigmoid = nn.Sigmoid()
 
-        self.fc_out = nn.Linear(
-            fc_features, output_features
-        )
 
         self.link = None
         self.link_name = link
@@ -113,11 +114,13 @@ class UniCrystalFormer(nn.Module):
             
         node_features = self.atom_embedding(data.x)
         edge_feat = torch.norm(data.edge_attr, dim=1)
-        
         edge_features = self.rbf(edge_feat)
         
+        data.x = node_features
+        data.edge_attr = edge_features
+        
         for i in range(self.conv_layers):
-            node_features = self.att_layers[i](node_features, data.edge_index, edge_features)
+            node_features = self.att_layers[i](data)
 
         # crystal-level readout
         features = scatter(node_features, data.batch, dim=0, reduce="mean")
