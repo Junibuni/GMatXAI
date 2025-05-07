@@ -19,6 +19,11 @@ def hash_config(cfg_dict):
     hash_input = str(cfg_dict)
     return hashlib.md5(hash_input.encode()).hexdigest()[:6]
 
+def run_analysis(config_path, to_track):
+    sweep_name = Path(config_path).stem
+    sweep_dir = Path("outputs") / sweep_name
+    return
+    
 def get_sweep_keys(config: dict) -> list:
     sweep_keys = set()
 
@@ -172,7 +177,7 @@ def run_sweep(config_path, to_track):
     sweep_results = []
     for i, cfg_dict in enumerate(sweep_configs, start=1):
         tag = f"test_{i:03d}_{hash_config(cfg_dict)}"
-        print(f"\n=============== Start {tag} ===============")
+        print(f"\n=============== Start {tag} ({i}/{len(sweep_configs)}) ===============")
         
         flat_params = flatten_config(cfg_dict, keys_to_track=to_track)
         cfg_path = sweep_dir / f"{tag}.yaml"
@@ -210,11 +215,21 @@ def run_sweep(config_path, to_track):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
+    parser.add_argument("--analyze_results", action="store_true")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
-
     sweep_keys = get_sweep_keys(cfg)
+    
+    if args.analyze_results:
+        print("Running analysis...")
+        if not sweep_keys:
+            print("Not a sweep experiment")
+            return
+        run_analysis(args.config, sweep_keys)
+        return
+
+    
     if sweep_keys:
         print("Sweep keys:", sweep_keys)
         run_sweep(args.config, sweep_keys)
