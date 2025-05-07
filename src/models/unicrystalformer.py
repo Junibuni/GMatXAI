@@ -53,7 +53,6 @@ class UniCrystalFormerLayer(nn.Module):
 class UniCrystalFormer(nn.Module):
     def __init__(self,
         conv_layers: int = 5,
-        atom_input_features: int = 92,
         edge_features: int = 128,
         hidden_dim: int = 128,
         fc_features: int = 128,
@@ -67,10 +66,11 @@ class UniCrystalFormer(nn.Module):
         super().__init__()
         self.zero_inflated = zero_inflated
         self.conv_layers = conv_layers
-        # CGCNN style atom embedding
-        self.atom_embedding = nn.Linear(
-            atom_input_features, hidden_dim
-        )
+        # Atom embedding
+        num_atom_types = 119
+        self.atom_embedding = nn.Embedding(num_atom_types, hidden_dim)
+        torch.nn.init.xavier_uniform_(self.embedding.weight.data)
+        
         self.rbf = nn.Sequential(
             RBFExpansion(
                 vmin=0,
