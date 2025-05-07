@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import r2_score, mean_absolute_error, root_mean_squared_error
 import os
+import pandas as pd
 
 def plot_parity(
     model, 
@@ -53,3 +54,9 @@ def plot_parity(
 
     plt.savefig(os.path.join(save_path, "parity_plot.png"), dpi=300)
     plt.close()
+    
+    df = pd.DataFrame({
+        "True": trues,
+        "Predicted": preds
+    })
+    df.to_csv(os.path.join(save_path, "parity_data.csv"), index=False)

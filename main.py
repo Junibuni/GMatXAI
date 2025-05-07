@@ -229,7 +229,6 @@ def main():
         run_analysis(args.config, sweep_keys)
         return
 
-    
     if sweep_keys:
         print("Sweep keys:", sweep_keys)
         run_sweep(args.config, sweep_keys)
