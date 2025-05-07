@@ -22,7 +22,38 @@ def hash_config(cfg_dict):
 def run_analysis(config_path, to_track):
     sweep_name = Path(config_path).stem
     sweep_dir = Path("outputs") / sweep_name
-    return
+    experiment_folders = [p for p in sweep_dir.iterdir() if p.is_dir()]
+    
+    sweep_results = []
+    print(f"Processing {len(experiment_folders)} folders in {sweep_dir}")
+    for tag in experiment_folders:
+        log_folder_path = tag / "logs"
+        cfg_dict = load_config(log_folder_path / "config.yaml")
+        flat_params = flatten_config(cfg_dict, keys_to_track=to_track)
+        
+        log_path = log_folder_path / "log.csv"
+        try:
+            df = pd.read_csv(log_path)
+            best_row = {"val_mae": df["val_mae"].min()}
+        except Exception as e:
+            best_row = {"error": str(e)}
+            
+        result = {"tag": tag, **flat_params, **best_row}
+        sweep_results.append(result)
+
+    result_df = pd.DataFrame(sweep_results)
+    
+    # Parallel Plot
+    data, labels = load_dataframe(result_df)
+    fig = pcp(data, labels, alpha=0.8)
+    plt.savefig(sweep_dir / f"{sweep_name}_parallel_plot.svg", format="svg", facecolor="white", bbox_inches="tight")
+    plt.close()
+    # Feature Importance
+    feature_importance_df = analyze_param_importance(result_df)
+    feature_importance_df.to_csv(sweep_dir / f"{sweep_name}_feature_importance.csv", index=False)
+    
+    result_df.to_csv(sweep_dir / f"{sweep_name}.csv", index=False)
+    print(f"\nSweep analysis complete. Results saved to {sweep_dir / f'{sweep_name}.csv'}")
     
 def get_sweep_keys(config: dict) -> list:
     sweep_keys = set()
