@@ -22,9 +22,47 @@ class CrossMix(nn.Module):
         gate = torch.sigmoid(self.gate(x))
         fused = self.linear(x)
         return gate * fused + (1 - gate) * (x_c + x_m) / 2
-    
+
+class ResidualGateMixer(nn.Module):
+    def __init__(self, d_model):
+        super(ResidualGateMixer, self).__init__()
+        self.mlp_gate = nn.Sequential(
+            nn.Linear(2 * d_model, d_model),
+            nn.Sigmoid()
+        )
+
+    def forward(self, h_A, h_B):
+        gate = self.mlp_gate(torch.cat([h_A, h_B], dim=-1))
+        return gate * h_A + (1 - gate) * h_B
+
+class CrossAttentionMixer(nn.Module):
+    def __init__(self, d_model, num_heads):
+        super(CrossAttentionMixer, self).__init__()
+        self.attention = nn.MultiheadAttention(d_model, num_heads)
+
+    def forward(self, h_A, h_B):
+        # 주의: 단일 그래프 가정; 배치 그래프의 경우 마스크 필요
+        h_A = h_A.unsqueeze(0)  # [1, num_nodes, d_model]
+        h_B = h_B.unsqueeze(0)  # [1, num_nodes, d_model]
+        h_mixed, _ = self.attention(h_A, h_B, h_B)
+        return h_mixed.squeeze(0)
+
+class MoESoftRoutingMixer(nn.Module):
+    def __init__(self, d_model):
+        super(MoESoftRoutingMixer, self).__init__()
+        self.mlp_router = nn.Sequential(
+            nn.Linear(2 * d_model, 2),
+            nn.Softmax(dim=-1)
+        )
+
+    def forward(self, h_A, h_B):
+        router_input = torch.cat([h_A, h_B], dim=-1)
+        weights = self.mlp_router(router_input)  # [num_nodes, 2]
+        w_A = weights[:, 0].unsqueeze(-1)
+        w_B = weights[:, 1].unsqueeze(-1)
+        return w_A * h_A + w_B * h_B
 class UniCrystalFormerLayer(nn.Module):
-    def __init__(self, hidden_dim, radius, heads, edge_dim):
+    def __init__(self, hidden_dim, radius, heads, edge_dim, mixer_type):
         super().__init__()
         self.cartnet = CartNet_layer(dim_in=hidden_dim, radius=radius)
         self.matformer = MatformerConv(
@@ -60,6 +98,8 @@ class UniCrystalFormer(nn.Module):
         node_layer_head: int = 4,
         link: Literal["identity", "log", "logit"] = "identity",
         zero_inflated: bool = False,
+        mix_layers: bool = True,
+        mixer_type: Literal["residual_gate", "cross_attention", "moe_soft_routing"] = 'residual_gate',
         dropout=0.1,
         radius=8.0
         ):
@@ -81,10 +121,25 @@ class UniCrystalFormer(nn.Module):
             nn.Softplus(),
             nn.Linear(hidden_dim, hidden_dim),
         )
-
+        
+        if mixer_type == 'residual_gate':
+            self.mixer = ResidualGateMixer(d_model)
+        elif mixer_type == 'cross_attention':
+            self.mixer = CrossAttentionMixer(d_model, num_heads)
+        elif mixer_type == 'moe_soft_routing':
+            self.mixer = MoESoftRoutingMixer(d_model)
+        else:
+            raise ValueError(f"Invalid mixer_type {mixer_type}")
+        
         self.att_layers = nn.ModuleList(
             [
-                UniCrystalFormerLayer(hidden_dim, radius, node_layer_head, edge_features=hidden_dim)
+                UniCrystalFormerLayer(
+                    hidden_dim, 
+                    radius, 
+                    node_layer_head, 
+                    edge_features=edge_features, 
+                    mixer_type=self.mixer if mix_layers else None
+                )
                 for _ in range(conv_layers)
             ]
         )
