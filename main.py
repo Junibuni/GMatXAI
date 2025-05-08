@@ -22,7 +22,7 @@ def hash_config(cfg_dict):
 def run_analysis(config_path, to_track):
     sweep_name = Path(config_path).stem
     sweep_dir = Path("outputs") / sweep_name
-    experiment_folders = [p for p in sweep_dir.iterdir() if p.is_dir()]
+    experiment_folders = [p for p in sweep_dir.iterdir() if p.is_dir() and p.name.startswith("test")]
     
     sweep_results = []
     print(f"Processing {len(experiment_folders)} folders in {sweep_dir}")
@@ -235,18 +235,20 @@ def run_sweep(config_path, to_track):
     fig = pcp(data, labels, alpha=0.8)
     plt.savefig(sweep_dir / f"{sweep_name}_parallel_plot.svg", format="svg", facecolor="white", bbox_inches="tight")
     plt.close()
+    print(f"Save Parallel Plot")
     # Feature Importance
     feature_importance_df = analyze_param_importance(result_df)
     feature_importance_df.to_csv(sweep_dir / f"{sweep_name}_feature_importance.csv", index=False)
+    print(f"Save Feature Importance")
     
     result_df.to_csv(sweep_dir / f"{sweep_name}.csv", index=False)
-    print(f"\nSweep complete. Results saved to {sweep_dir / f'{sweep_name}.csv'}")
+    print(f"\nSweep complete. Results saved to: {sweep_dir / f'{sweep_name}.csv'}")
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
-    parser.add_argument("--analyze_results", action="store_true")
+    parser.add_argument("-A", "--analyze_results", action="store_true")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
