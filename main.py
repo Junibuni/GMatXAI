@@ -19,7 +19,13 @@ def hash_config(cfg_dict):
     hash_input = str(cfg_dict)
     return hashlib.md5(hash_input.encode()).hexdigest()[:6]
 
-def run_analysis(config_path, to_track):
+def should_flip_axis(metric_name: str) -> bool:
+    metric_name = metric_name.lower()
+    flip_metrics = {"mae", "mse", "cross-entropy", "loss"}
+    return any(flip_metric in metric_name for flip_metric in flip_metrics)
+
+def run_analysis(config_path, to_track, metric="val_mae"):
+    flip_metric = should_flip_axis(metric)
     sweep_name = Path(config_path).stem
     sweep_dir = Path("outputs") / sweep_name
     experiment_folders = [p for p in sweep_dir.iterdir() if p.is_dir() and p.name.startswith("test")]
@@ -35,7 +41,7 @@ def run_analysis(config_path, to_track):
         log_path = log_folder_path / "log.csv"
         try:
             df = pd.read_csv(log_path)
-            best_row = {"val_mae": df["val_mae"].min()}
+            best_row = {metric: df[metric].min()}
         except Exception as e:
             best_row = {"error": str(e)}
             
@@ -44,10 +50,11 @@ def run_analysis(config_path, to_track):
 
     result_df = pd.DataFrame(sweep_results)
     
+    print(f"\nCollected {len(experiment_folders)} Data:\n\n{result_df.sort_values(by=metric, ascending=flip_metric)}")
     # Parallel Plot
     data, labels = load_dataframe(result_df)
     # If metric=loss --> flip_metric=True
-    fig = pcp(data, labels, alpha=0.8, flip_metric=True)
+    fig = pcp(data, labels, alpha=0.8, flip_metric=flip_metric)
     plt.savefig(sweep_dir / f"{sweep_name}_parallel_plot.svg", format="svg", facecolor="white", bbox_inches="tight")
     plt.close()
     # Feature Importance
@@ -197,7 +204,8 @@ def flatten_config(cfg_dict, keys_to_track=None):
 
     return flat
 
-def run_sweep(config_path, to_track):
+def run_sweep(config_path, to_track, metric="val_mae"):
+    flip_metric = should_flip_axis(metric)
     base_config = load_config(config_path).to_dict()
     sweep_name = Path(config_path).stem
     sweep_dir = Path("outputs") / sweep_name
@@ -222,7 +230,7 @@ def run_sweep(config_path, to_track):
 
         try:
             df = pd.read_csv(log_path)
-            best_row = {"val_mae": df["val_mae"].min()}
+            best_row = {metric: df[metric].min()}
         except Exception as e:
             best_row = {"error": str(e)}
 
@@ -232,9 +240,10 @@ def run_sweep(config_path, to_track):
     print(f"\n=====================================")
     result_df = pd.DataFrame(sweep_results)
     
+    print(f"\nCollected {len(sweep_configs)} Data:\n\n{result_df.sort_values(by=metric, ascending=flip_metric)}")
     # Parallel Plot
     data, labels = load_dataframe(result_df)
-    fig = pcp(data, labels, alpha=0.8)
+    fig = pcp(data, labels, alpha=0.8, flip_metric=flip_metric)
     plt.savefig(sweep_dir / f"{sweep_name}_parallel_plot.svg", format="svg", facecolor="white", bbox_inches="tight")
     plt.close()
     print(f"Save Parallel Plot")
