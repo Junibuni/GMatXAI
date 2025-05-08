@@ -108,10 +108,10 @@ def set_ylim(ylim, data):
     return ylim
 
 
-def get_score(data, ylim):
-    ymin = ylim[len(ylim) - 1][0]
-    ymax = ylim[len(ylim) - 1][1]
-    score = (np.copy(data[len(ylim) - 1, :]) - ymin) / (ymax - ymin)
+def get_score(data, ylim, flip_metric=True):
+    ymin = ylim[-1][0]
+    ymax = ylim[-1][1]
+    score = (np.copy(data[-1, :]) - ymin) / (ymax - ymin)
     return score
 
 
@@ -153,7 +153,8 @@ def pcp(data,
         alpha=1.0,
         colorbar=True, 
         colorbar_width=0.02,
-        cmap=plt.get_cmap("inferno")
+        cmap=plt.get_cmap("inferno"),
+        flip_metric=False
         ):
     """
     Parallel Coordinates Plot 
@@ -210,6 +211,10 @@ def pcp(data,
     ylabels = set_ylabels(ylabels, data, ytype)
     data = replace_str_values(data, ytype, ylabels)
     ylim = set_ylim(ylim, data)
+    
+    if flip_metric:
+        ylim[-1] = ylim[-1][::-1]
+    
     score = get_score(data, ylim)
     data = rescale_data(data, ytype, ylim)
 
@@ -258,7 +263,7 @@ def pcp(data,
         
     if colorbar:
         bar = fig.add_axes([left + width, bottom, colorbar_width, height])
-        norm = mpl.colors.Normalize(vmin=ylim[i][0], vmax=ylim[i][1])
+        norm = mpl.colors.Normalize(vmin=ylim[-1][0], vmax=ylim[-1][1])
         mpl.colorbar.ColorbarBase(bar, cmap=cmap, norm=norm, 
             orientation="vertical")
         bar.tick_params(size=0)

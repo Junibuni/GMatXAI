@@ -46,7 +46,8 @@ def run_analysis(config_path, to_track):
     
     # Parallel Plot
     data, labels = load_dataframe(result_df)
-    fig = pcp(data, labels, alpha=0.8)
+    # If metric=loss --> flip_metric=True
+    fig = pcp(data, labels, alpha=0.8, flip_metric=True)
     plt.savefig(sweep_dir / f"{sweep_name}_parallel_plot.svg", format="svg", facecolor="white", bbox_inches="tight")
     plt.close()
     # Feature Importance
