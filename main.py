@@ -26,8 +26,9 @@ def run_analysis(config_path, to_track):
     
     sweep_results = []
     print(f"Processing {len(experiment_folders)} folders in {sweep_dir}")
-    for tag in experiment_folders:
-        log_folder_path = tag / "logs"
+    for folder_pth in experiment_folders:
+        tag = folder_pth.stem
+        log_folder_path = folder_pth / "logs"
         cfg_dict = load_config(log_folder_path / "config.yaml")
         flat_params = flatten_config(cfg_dict, keys_to_track=to_track)
         
