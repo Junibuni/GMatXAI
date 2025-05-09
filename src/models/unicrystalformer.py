@@ -1,8 +1,8 @@
-import numpy as np
-import torch
-import torch.nn.functional as F
 from typing import Literal
+
+import torch
 from torch import nn
+from torch_geometric.nn import GraphNorm
 from torch_scatter import scatter
 
 from src.models.cartnet import CartNet_layer
@@ -73,9 +73,10 @@ class MoESoftRoutingMixer(nn.Module):
         w_B = weights[:, 1].unsqueeze(-1)
         return w_A * h_A + w_B * h_B
 class UniCrystalFormerLayer(nn.Module):
-    def __init__(self, hidden_dim, radius, heads, edge_dim, mix_layers, mixer_type):
+    def __init__(self, hidden_dim, radius, heads, edge_dim, mix_layers, mixer_type, dropout=0.1, residual_scale=0.5):
         super().__init__()
         self.mix_layers = mix_layers
+        self.residual_scale = residual_scale
         
         self.cartnet = CartNet_layer(dim_in=hidden_dim, radius=radius)
         self.matformer = MatformerConv(
@@ -100,8 +101,9 @@ class UniCrystalFormerLayer(nn.Module):
 
         if self.mix_layers:
             x_out = self.mixer(x_cart, x_mat)
-            batch_cart.x = x_out + x_cart
-            batch_mat.x = x_out + x_mat
+            x_out = self.dropout(x_out)
+            batch_cart.x = x_cart + self.residual_scale * x_out
+            batch_mat.x = x_mat + self.residual_scale * x_out
         else:
             batch_cart.x = x_cart
             batch_mat.x = x_mat
@@ -159,7 +161,9 @@ class UniCrystalFormer(nn.Module):
                     num_heads, 
                     edge_dim=edge_features,
                     mix_layers=mix_layers, 
-                    mixer_type=self.mixer
+                    mixer_type=self.mixer,
+                    dropout=dropout,
+                    residual_scale=0.5
                 )
                 for _ in range(conv_layers)
             ]
