@@ -94,8 +94,8 @@ def run_single_experiment(config_path: str, tag_override: str = None):
 
     print("\nFinal Evaluation")
     model.load_state_dict(best_model)
-    trainer.test(metric="mae")
-    trainer.test(metric="rmse")
+    trainer.load_model(model, device=cfg.training.device)
+    trainer.test()
 
     print("\nSave Loss Curve")
     plt.figure()

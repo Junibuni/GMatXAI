@@ -33,7 +33,10 @@ class Trainer:
         self.val_maes = []
         self.lr_history = []
         self.scheduler_step_per_batch = self.should_step_per_batch()
-
+    
+    def load_model(self, model, device="cpu"):
+        self.model = model.to(device)
+        
     def train_epoch(self, epoch):
         self.model.train()
         total_loss = 0
@@ -139,7 +142,7 @@ class Trainer:
         print(f"Best Validation MAE: {best_val_mae:.4f}")
         return best_model
         
-    def test(self, metric='mae'):
+    def test(self):
         self.model.eval()
         preds = []
         targets = []

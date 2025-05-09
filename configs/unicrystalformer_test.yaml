@@ -38,4 +38,4 @@ training:
   scheduler:
     name: onecycle
     max_lr: 0.005
-    pct_start: 0.12
+    pct_start: 0.1
