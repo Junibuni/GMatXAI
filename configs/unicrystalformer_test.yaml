@@ -1,0 +1,41 @@
+experiment:
+  model_name: unicrystal
+  explain_material_ids: []
+
+data:
+  data_dir: data/processed
+  target: [formation_energy_per_atom]
+  batch_size: 64
+  num_workers: 0
+  train_ratio: 0.8
+  val_ratio: 0.1
+  onehot: false
+  jitter_std: 0.0
+  seed: 42
+
+model:
+  conv_layers: 5
+  edge_features: 128
+  hidden_dim: 128
+  fc_features: 128
+  output_features: 1
+  num_heads: 4
+  mix_layers: True
+  mixer_type: residual_gate
+  dropout: 0.1
+  radius: 8.0
+
+
+training:
+  device: cuda
+  epochs: 100
+  lr: 0.001
+
+  optimizer:
+    name: adamw
+    weight_decay: 0.01
+
+  scheduler:
+    name: onecycle
+    max_lr: 0.003
+    pct_start: 0.1

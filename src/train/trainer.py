@@ -56,7 +56,7 @@ class Trainer:
 
         return total_loss / len(self.train_loader.dataset)
     
-    def get_metcis(self, preds, targets):
+    def get_metrics(self, preds, targets):
         return {
             "mae": mae(preds, targets), 
             "mse": mse(preds, targets), 
@@ -84,7 +84,7 @@ class Trainer:
         preds = torch.cat(preds, dim=0)
         targets = torch.cat(targets, dim=0)
         avg_loss = total_loss / len(self.val_loader.dataset)
-        metrics = self.get_metcis(preds, targets)
+        metrics = self.get_metrics(preds, targets)
         
         return avg_loss, metrics
 
@@ -154,17 +154,10 @@ class Trainer:
         preds = torch.cat(preds, dim=0)
         targets = torch.cat(targets, dim=0)
 
-        if metric == "mae":
-            score = mae(preds, targets)
-        elif metric == "rmse":
-            score = rmse(preds, targets)
-        elif metric == "mse":
-            score = mse(preds, targets)
-        else:
-            raise ValueError(f"Unsupported metric: {metric}")
+        metrics = self.get_metrics(preds, targets)
 
-        print(f"Test {metric}: {score:.4f}")
-        return score
+        for metric_name, score in metrics.items():
+            print(f"Test {metric_name}: {score:.4f}")
     
     def get_current_lr(self):
         if self.scheduler and hasattr(self.scheduler, "get_last_lr"):
