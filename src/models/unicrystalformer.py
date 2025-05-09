@@ -42,6 +42,10 @@ class CrossMixAttention(nn.Module):
         self.value = nn.Linear(hidden_dim, hidden_dim)
         self.norm = nn.LayerNorm(hidden_dim)
         self.dropout = nn.Dropout(dropout)
+        
+        nn.init.xavier_uniform_(self.query.weight)
+        nn.init.xavier_uniform_(self.key.weight)
+        nn.init.xavier_uniform_(self.value.weight)
 
     def forward(self, h_A, h_B):
         Q = self.query(h_A)   # [n_nodes, hidden_dim]
