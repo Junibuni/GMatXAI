@@ -112,14 +112,12 @@ class UniCrystalFormer(nn.Module):
         fc_features: int = 128,
         output_features: int = 1,
         num_heads: int = 4,
-        zero_inflated: bool = False,
         mix_layers: bool = True,
         mixer_type: Literal["residual_gate", "cross_attention", "moe_soft_routing"] = 'residual_gate',
         dropout: float = 0.1,
         radius: float = 8.0
         ):
         super().__init__()
-        self.zero_inflated = zero_inflated
         self.conv_layers = conv_layers
         self.mix_layers = mix_layers
         # Atom embedding
@@ -207,7 +205,6 @@ class UniCrystalFormer(nn.Module):
             fc_features = config.get("fc_features", 128),
             output_features = config.get("output_features", 1),
             num_heads = config.get("num_heads", 4),
-            zero_inflated = config.get("zero_inflated", False),
             mix_layers = config.get("mix_layers", True),
             mixer_type = config.get("mixer_type", 'residual_gate'),
             dropout = config.get("dropout", 0.1),
