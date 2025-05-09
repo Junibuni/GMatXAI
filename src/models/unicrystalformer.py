@@ -88,11 +88,15 @@ class UniCrystalFormerLayer(nn.Module):
         )
         self.mixer = mixer_type(hidden_dim)
 
+        self.norm_cart = nn.LayerNorm(hidden_dim)
+        self.norm_mat = nn.LayerNorm(hidden_dim)
+
     def forward(self, batch_cart, batch_mat):
         cartnet_batch = self.cartnet(batch_cart)
-        x_cart = cartnet_batch.x
+        x_cart = self.norm_cart(cartnet_batch.x)
 
         x_mat = self.matformer(batch_mat.x, batch_mat.edge_index, batch_mat.edge_attr)
+        x_mat = self.norm_mat(x_mat)
 
         if self.mix_layers:
             x_out = self.mixer(x_cart, x_mat)
@@ -123,7 +127,7 @@ class UniCrystalFormer(nn.Module):
         # Atom embedding
         num_atom_types = 119
         self.atom_embedding = nn.Embedding(num_atom_types, hidden_dim)
-        torch.nn.init.xavier_uniform_(self.atom_embedding.weight.data)
+        nn.init.kaiming_uniform_(self.atom_embedding.weight, nonlinearity='relu')
         
         self.rbf = nn.Sequential(
             RBFExpansion(
@@ -169,6 +173,14 @@ class UniCrystalFormer(nn.Module):
         )
         self.sigmoid = nn.Sigmoid()
 
+        self.apply(self._init_weights)
+
+    def _init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            nn.init.kaiming_uniform_(m.weight, nonlinearity='relu')
+            if m.bias is not None:
+                nn.init.zeros_(m.bias)
+                
     def forward(self, data) -> torch.Tensor:
         node_features = self.atom_embedding(data.x)
         edge_feat = torch.norm(data.edge_attr, dim=1)
