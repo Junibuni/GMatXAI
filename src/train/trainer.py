@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 
-from src.utils.metrics import mae, mse, rmse
+from src.utils.metrics import mae, mse, rmse, r2_score, mape
 
 class Trainer:
     def __init__(
@@ -55,6 +55,15 @@ class Trainer:
             loader.set_postfix(loss=loss.item())
 
         return total_loss / len(self.train_loader.dataset)
+    
+    def get_metcis(self, preds, targets):
+        return {
+            "mae": mae(preds, targets), 
+            "mse": mse(preds, targets), 
+            "rmse": rmse(preds, targets), 
+            "r2_score": r2_score(preds, targets), 
+            "mape": mape(preds, targets)
+        }
 
     def validate(self):
         total_loss = 0
@@ -75,9 +84,9 @@ class Trainer:
         preds = torch.cat(preds, dim=0)
         targets = torch.cat(targets, dim=0)
         avg_loss = total_loss / len(self.val_loader.dataset)
-        val_mae = mae(preds, targets)
+        metrics = self.get_metcis(preds, targets)
         
-        return avg_loss, val_mae
+        return avg_loss, metrics
 
     def train(self, num_epochs=30, max_prints=20):
         best_val_mae = float("inf")
@@ -86,17 +95,21 @@ class Trainer:
 
         for epoch in range(1, num_epochs + 1):
             train_loss = self.train_epoch(epoch)
-            val_loss, val_mae = self.validate()
+            val_loss, metrics = self.validate()
             
             self.train_losses.append(train_loss)
             self.val_losses.append(val_loss)
-            self.val_maes.append(val_mae)
+            self.val_maes.append(metrics['mae'])
             current_lr = self.get_current_lr()
             self.lr_history.append(current_lr)
 
             self.writer.add_scalar("Loss/train", train_loss, epoch)
             self.writer.add_scalar("Loss/val", val_loss, epoch)
-            self.writer.add_scalar("Metric/val_mae", val_mae, epoch)
+            self.writer.add_scalar("Metric/val_mae", metrics['mae'], epoch)
+            self.writer.add_scalar("Metric/val_mse", metrics['mse'], epoch)
+            self.writer.add_scalar("Metric/val_rmse", metrics['rmse'], epoch)
+            self.writer.add_scalar("Metric/val_r2_score", metrics['r2_score'], epoch)
+            self.writer.add_scalar("Metric/val_mape", metrics['mape'], epoch)
             self.writer.add_scalar("LR", current_lr, epoch)
             
             # Gradient norm 로깅
@@ -109,10 +122,10 @@ class Trainer:
             self.writer.add_scalar("Gradients/global_norm", total_norm, epoch)
 
             if epoch == 1 or epoch % step == 0 or epoch == num_epochs:
-                print(f"[Epoch {epoch}] LR: {current_lr:.6f} | Train Loss: {train_loss:.4f} | Val MAE: {val_mae:.4f}")
+                print(f"[Epoch {epoch}] LR: {current_lr:.6f} | Train Loss: {train_loss:.4f} | Val MAE: {metrics['mae']:.4f}")
 
-            if val_mae < best_val_mae:
-                best_val_mae = val_mae
+            if metrics['mae'] < best_val_mae:
+                best_val_mae = metrics['mae']
                 best_model = self.model.state_dict()
 
             if self.scheduler:
