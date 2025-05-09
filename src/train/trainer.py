@@ -34,8 +34,8 @@ class Trainer:
         self.lr_history = []
         self.scheduler_step_per_batch = self.should_step_per_batch()
     
-    def load_model(self, model, device="cpu"):
-        self.model = model.to(device)
+    def load_model(self, best_model):
+        self.model.load_state_dict(best_model)
         
     def train_epoch(self, epoch):
         self.model.train()

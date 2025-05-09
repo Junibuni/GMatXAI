@@ -93,8 +93,7 @@ def run_single_experiment(config_path: str, tag_override: str = None):
     trainer.export_logs_to_csv(os.path.join(log_dir, "log.csv"))
 
     print("\nFinal Evaluation")
-    model.load_state_dict(best_model)
-    trainer.load_model(model, device=cfg.training.device)
+    trainer.load_model(best_model)
     trainer.test()
 
     print("\nSave Loss Curve")
