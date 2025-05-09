@@ -81,6 +81,7 @@ class UniCrystalFormerLayer(nn.Module):
         super().__init__()
         self.mix_layers = mix_layers
         self.residual_scale = residual_scale
+        self.dropout = nn.Dropout(dropout)
         
         self.cartnet = CartNet_layer(dim_in=hidden_dim, radius=radius)
         self.matformer = MatformerConv(
@@ -93,15 +94,15 @@ class UniCrystalFormerLayer(nn.Module):
         )
         self.mixer = mixer_type(hidden_dim)
 
-        self.norm_cart = nn.LayerNorm(hidden_dim)
-        self.norm_mat = nn.LayerNorm(hidden_dim)
+        self.norm_cart = GraphNorm(hidden_dim)
+        self.norm_mat = GraphNorm(hidden_dim)
 
     def forward(self, batch_cart, batch_mat):
         cartnet_batch = self.cartnet(batch_cart)
-        x_cart = self.norm_cart(cartnet_batch.x)
+        x_cart = self.norm_cart(cartnet_batch.x, batch_cart.batch)
 
         x_mat = self.matformer(batch_mat.x, batch_mat.edge_index, batch_mat.edge_attr)
-        x_mat = self.norm_mat(x_mat)
+        x_mat = self.norm_mat(x_mat, batch_mat.batch)
 
         if self.mix_layers:
             x_out = self.mixer(x_cart, x_mat)
