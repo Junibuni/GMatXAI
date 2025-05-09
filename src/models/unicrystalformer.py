@@ -115,12 +115,13 @@ class UniCrystalFormer(nn.Module):
         zero_inflated: bool = False,
         mix_layers: bool = True,
         mixer_type: Literal["residual_gate", "cross_attention", "moe_soft_routing"] = 'residual_gate',
-        dropout=0.1,
-        radius=8.0
+        dropout: float = 0.1,
+        radius: float = 8.0
         ):
         super().__init__()
         self.zero_inflated = zero_inflated
         self.conv_layers = conv_layers
+        self.mix_layers = mix_layers
         # Atom embedding
         num_atom_types = 119
         self.atom_embedding = nn.Embedding(num_atom_types, hidden_dim)
@@ -154,7 +155,7 @@ class UniCrystalFormer(nn.Module):
                     hidden_dim, 
                     radius, 
                     num_heads, 
-                    edge_features=edge_features,
+                    edge_dim=edge_features,
                     mix_layers=mix_layers, 
                     mixer_type=self.mixer
                 )
@@ -195,6 +196,20 @@ class UniCrystalFormer(nn.Module):
         
         out = self.fc_readout(features)
 
-        return torch.squeeze(out)
+        return out
 
-
+    @classmethod
+    def from_config(cls, config):
+        return cls(
+            conv_layers = config.get("conv_layers", 5),
+            edge_features = config.get("edge_features", 128),
+            hidden_dim = config.get("hidden_dim", 128),
+            fc_features = config.get("fc_features", 128),
+            output_features = config.get("output_features", 1),
+            num_heads = config.get("num_heads", 4),
+            zero_inflated = config.get("zero_inflated", False),
+            mix_layers = config.get("mix_layers", True),
+            mixer_type = config.get("mixer_type", 'residual_gate'),
+            dropout = config.get("dropout", 0.1),
+            radius = config.get("radius", 8.0)
+        )
