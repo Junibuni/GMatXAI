@@ -8,7 +8,10 @@ from torch.utils.data import Dataset
 from torch_geometric.data import Data
 from tqdm import tqdm
 
-from src.utils.atom_info import ATOM_TYPES
+from src.utils.atom_info import ATOM_TYPES, MEGNET_ATOM_EMBEDDING
+
+def get_megnet_embedding(symbol: str):
+    return torch.tensor(MEGNET_ATOM_EMBEDDING.get(symbol, [0.0] * 16), dtype=torch.float)
 
 def extract_atom_specie(formula, include_charge=False):
     match = re.match(r'^([A-Z][a-z]?)(\d*)([+-])?', formula)
@@ -82,6 +85,9 @@ class MaterialsGraphDataset(Dataset):
             dtype=torch.bool
         )
 
+        megnet_embeds = [get_megnet_embedding(extract_atom_specie(atom)) for atom in nodes]
+        atom_megnet_embed = torch.stack(megnet_embeds, dim=0)
+
         if not self.target_key:
             raise ValueError("self.target_key must contain at least one key.")
 
@@ -101,6 +107,7 @@ class MaterialsGraphDataset(Dataset):
             cart_dir=cart_dir,
             atom_types=nodes,
             non_H_mask=non_H_mask,
+            atom_megnet_embed=atom_megnet_embed,
             y=y
         )
         return data

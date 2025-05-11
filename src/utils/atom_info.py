@@ -42,3 +42,8 @@ ATOM_COLOR_MAP = {
     'Rg': '#FF00AF', 'Cn': '#FF007F', 'Fl': '#FF0055', 'Lv': '#FF0022', 'Ts': '#FF0000',
     'Og': '#E00000'
 }
+
+import json
+
+with open("data/elemental_embedding_1MEGNet_layer.json", "r") as f:
+    MEGNET_ATOM_EMBEDDING = json.load(f)
