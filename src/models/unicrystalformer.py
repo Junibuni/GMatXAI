@@ -2,7 +2,7 @@ from typing import Literal
 
 import torch
 from torch import nn
-from torch_geometric.nn import GraphNorm
+from torch_geometric.nn import GraphNorm, GlobalAttention
 from torch_scatter import scatter
 
 from src.models.cartnet import CartNet_layer
@@ -61,7 +61,6 @@ class CrossMixAttention(nn.Module):
 
         return fused
 
-
 class MoESoftRoutingMixer(nn.Module):
     def __init__(self, d_model):
         super(MoESoftRoutingMixer, self).__init__()
@@ -76,8 +75,9 @@ class MoESoftRoutingMixer(nn.Module):
         w_A = weights[:, 0].unsqueeze(-1)
         w_B = weights[:, 1].unsqueeze(-1)
         return w_A * h_A + w_B * h_B
+
 class UniCrystalFormerLayer(nn.Module):
-    def __init__(self, hidden_dim, radius, heads, edge_dim, mix_layers, mixer_type, dropout=0.1, residual_scale=0.5):
+    def __init__(self, hidden_dim, radius, heads, edge_dim, mix_layers, mixer, dropout=0.1, residual_scale=0.5):
         super().__init__()
         self.mix_layers = mix_layers
         self.residual_scale = residual_scale
@@ -92,7 +92,15 @@ class UniCrystalFormerLayer(nn.Module):
             concat=False,
             beta=True
         )
-        self.mixer = mixer_type(hidden_dim)
+
+        self.matformer_ffn = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim * 2),
+            nn.SiLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim * 2, hidden_dim)
+        )
+        
+        self.mixer = mixer()
 
         self.norm_cart = GraphNorm(hidden_dim)
         self.norm_mat = GraphNorm(hidden_dim)
@@ -102,6 +110,7 @@ class UniCrystalFormerLayer(nn.Module):
         x_cart = self.norm_cart(cartnet_batch.x, batch_cart.batch)
 
         x_mat = self.matformer(batch_mat.x, batch_mat.edge_index, batch_mat.edge_attr)
+        x_mat = self.matformer_ffn(x_mat)
         x_mat = self.norm_mat(x_mat, batch_mat.batch)
 
         if self.mix_layers:
@@ -115,6 +124,29 @@ class UniCrystalFormerLayer(nn.Module):
         
         return batch_cart, batch_mat
 
+class AtomEncoder(nn.Module):
+    def __init__(self, num_atom_types, hidden_dim, dropout=0.1):
+        super().__init__()
+        self.atom_embedding = nn.Embedding(num_atom_types, hidden_dim)         # atomic number 기반
+        self.megnet_proj = nn.Linear(16, hidden_dim)             # MEGNet 임베딩
+
+        nn.init.kaiming_uniform_(self.atom_embedding.weight, nonlinearity='relu')
+
+        self.out_proj = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.SiLU(),
+            nn.LayerNorm(hidden_dim),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.Dropout(dropout)
+        )
+
+    def forward(self, atomic_numbers, megnet_embed):
+        emb = self.atom_embedding(atomic_numbers)            # [N, hidden_dim]
+        megnet = self.megnet_proj(megnet_embed)         # [N, hidden_dim]
+
+        combined = emb  + megnet                  # Element-wise sum
+        return self.out_proj(combined)                  # [N, hidden_dim]
+    
 class UniCrystalFormer(nn.Module):
     def __init__(self,
         conv_layers: int = 5,
@@ -133,8 +165,7 @@ class UniCrystalFormer(nn.Module):
         self.mix_layers = mix_layers
         # Atom embedding
         num_atom_types = 119
-        self.atom_embedding = nn.Embedding(num_atom_types, hidden_dim)
-        nn.init.kaiming_uniform_(self.atom_embedding.weight, nonlinearity='relu')
+        self.atom_embedding = AtomEncoder(num_atom_types, hidden_dim, dropout)
         
         self.rbf = nn.Sequential(
             RBFExpansion(
@@ -143,18 +174,18 @@ class UniCrystalFormer(nn.Module):
                 bins=edge_features,
             ),
             nn.Linear(edge_features, hidden_dim),
-            nn.Softplus(),
+            nn.SiLU(),
             nn.Linear(hidden_dim, hidden_dim),
         )
         
         if mixer_type == 'residual_gate':
-            self.mixer = ResidualGateMixer
+            def mixer_ctor(): return ResidualGateMixer(hidden_dim)
         # elif mixer_type == 'cross_attention':
         #     self.mixer = CrossAttentionMixer(hidden_dim, num_heads)
         elif mixer_type == 'cross_attention':
-            self.mixer = CrossMixAttention
+            def mixer_ctor(): return CrossMixAttention(hidden_dim, dropout)
         elif mixer_type == 'moe_soft_routing':
-            self.mixer = MoESoftRoutingMixer
+            def mixer_ctor(): return MoESoftRoutingMixer(hidden_dim)
         else:
             raise ValueError(f"Invalid mixer_type {mixer_type}")
         
@@ -166,7 +197,7 @@ class UniCrystalFormer(nn.Module):
                     num_heads, 
                     edge_dim=edge_features,
                     mix_layers=mix_layers, 
-                    mixer_type=self.mixer,
+                    mixer=mixer_ctor,
                     dropout=dropout,
                     residual_scale=0.5
                 )
@@ -180,7 +211,6 @@ class UniCrystalFormer(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(fc_features, output_features)
         )
-        self.sigmoid = nn.Sigmoid()
 
         self.apply(self._init_weights)
 
@@ -191,7 +221,7 @@ class UniCrystalFormer(nn.Module):
                 nn.init.zeros_(m.bias)
                 
     def forward(self, data) -> torch.Tensor:
-        node_features = self.atom_embedding(data.x)
+        node_features = self.atom_embedding(data.x, data.atom_megnet_embed)
         edge_feat = torch.norm(data.edge_attr, dim=1)
         edge_features = self.rbf(edge_feat)
         
