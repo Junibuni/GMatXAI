@@ -2,7 +2,7 @@ from typing import Literal
 
 import torch
 from torch import nn
-from torch_geometric.nn import GraphNorm, GlobalAttention
+from torch_geometric.nn import GraphNorm
 from torch_scatter import scatter
 
 from src.models.cartnet import CartNet_layer
