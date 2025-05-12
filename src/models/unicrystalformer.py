@@ -10,18 +10,21 @@ from src.models.matformer.utils import RBFExpansion
 from src.models.matformer.transformer import MatformerConv
 
 class ResidualGateMixer(nn.Module):
-    def __init__(self, d_model):
+    def __init__(self, d_model, dropout=0.1):
         super(ResidualGateMixer, self).__init__()
         self.mlp_gate = nn.Sequential(
             nn.Linear(2 * d_model, d_model),
             nn.Sigmoid()
         )
+        self.dropout = nn.Dropout(dropout)
+        self.norm = nn.LayerNorm(d_model)
 
     def forward(self, h_A, h_B):
         assert h_A.shape == h_B.shape, "h_A and h_B must have the same shape"
 
         gate = self.mlp_gate(torch.cat([h_A, h_B], dim=-1))
-        return gate * h_A + (1 - gate) * h_B
+        mixed = gate * h_A + (1 - gate) * h_B
+        return self.norm(self.dropout(mixed))
 
 # class CrossAttentionMixer(nn.Module):
 #     def __init__(self, d_model, num_heads):
@@ -80,7 +83,7 @@ class UniCrystalFormerLayer(nn.Module):
     def __init__(self, hidden_dim, radius, heads, edge_dim, mix_layers, mixer, dropout=0.1, residual_scale=0.5):
         super().__init__()
         self.mix_layers = mix_layers
-        self.residual_scale = residual_scale
+        self.residual_scale = nn.Parameter(torch.tensor(0.5, dtype=torch.float32))
         self.dropout = nn.Dropout(dropout)
         
         self.cartnet = CartNet_layer(dim_in=hidden_dim, radius=radius)
@@ -104,8 +107,12 @@ class UniCrystalFormerLayer(nn.Module):
 
         self.norm_cart = GraphNorm(hidden_dim)
         self.norm_mat = GraphNorm(hidden_dim)
+        self.norm_pre_mix_cart = nn.LayerNorm(hidden_dim)
+        self.norm_pre_mix_mat = nn.LayerNorm(hidden_dim)
 
     def forward(self, batch_cart, batch_mat):
+        res_scale = torch.clamp(self.residual_scale, 0.0, 1.0)
+
         cartnet_batch = self.cartnet(batch_cart)
         x_cart = self.norm_cart(cartnet_batch.x, batch_cart.batch)
 
@@ -114,10 +121,12 @@ class UniCrystalFormerLayer(nn.Module):
         x_mat = self.norm_mat(x_mat, batch_mat.batch)
 
         if self.mix_layers:
-            x_out = self.mixer(x_cart, x_mat)
+            x_cart_norm = self.norm_pre_mix_cart(x_cart)
+            x_mat_norm = self.norm_pre_mix_mat(x_mat)
+            x_out = self.mixer(x_cart_norm, x_mat_norm)
             x_out = self.dropout(x_out)
-            batch_cart.x = x_cart + self.residual_scale * x_out
-            batch_mat.x = x_mat + self.residual_scale * x_out
+            batch_cart.x = x_cart + res_scale * x_out
+            batch_mat.x = x_mat + res_scale * x_out
         else:
             batch_cart.x = x_cart
             batch_mat.x = x_mat
@@ -179,13 +188,13 @@ class UniCrystalFormer(nn.Module):
         )
         
         if mixer_type == 'residual_gate':
-            def mixer_ctor(): return ResidualGateMixer(hidden_dim)
+            mixer_ctor = lambda: ResidualGateMixer(hidden_dim, dropout)
         # elif mixer_type == 'cross_attention':
         #     self.mixer = CrossAttentionMixer(hidden_dim, num_heads)
         elif mixer_type == 'cross_attention':
-            def mixer_ctor(): return CrossMixAttention(hidden_dim, dropout)
+            mixer_ctor = lambda: CrossMixAttention(hidden_dim, dropout)
         elif mixer_type == 'moe_soft_routing':
-            def mixer_ctor(): return MoESoftRoutingMixer(hidden_dim)
+            mixer_ctor = lambda: MoESoftRoutingMixer(hidden_dim)
         else:
             raise ValueError(f"Invalid mixer_type {mixer_type}")
         
@@ -205,6 +214,7 @@ class UniCrystalFormer(nn.Module):
             ]
         )
 
+        self.final_norm = nn.LayerNorm(hidden_dim)
         self.fc_readout = nn.Sequential(
             nn.Linear(hidden_dim, fc_features), 
             nn.SiLU(),
@@ -242,7 +252,7 @@ class UniCrystalFormer(nn.Module):
 
         # crystal-level readout
         features = scatter(x_out, data.batch, dim=0, reduce="mean")
-        
+        features = self.final_norm(features)
         out = self.fc_readout(features)
 
         return out
