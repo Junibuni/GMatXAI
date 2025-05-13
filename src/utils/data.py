@@ -13,3 +13,9 @@ def sample_explanation_data(test_dataset, material_ids=None, k=3):
         selected = [test_dataset[i] for i in indices]
 
     return selected
+
+def standardize(data, mean, std):
+    return (data - mean) / std
+
+def reverse_standardization(standardized_data, mean, std):
+    return standardized_data * std + mean
