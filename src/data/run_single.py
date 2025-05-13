@@ -36,6 +36,7 @@ def run_single_experiment(config_path: str, tag_override: str = None):
     set_seed(cfg.data.seed)
 
     print(f"\nLoad Dataset: {cfg.data.target}")
+    norm = True
     train_loader, val_loader, test_loader = get_loaders(
         data_dir=cfg.data.data_dir,
         target=cfg.data.target,
@@ -45,7 +46,8 @@ def run_single_experiment(config_path: str, tag_override: str = None):
         val_ratio=cfg.data.val_ratio,
         onehot=cfg.data.onehot,
         jitter_std=cfg.data.jitter_std,
-        seed=cfg.data.seed
+        seed=cfg.data.seed,
+        norm=norm
     )
 
     if cfg.model.output_dim:

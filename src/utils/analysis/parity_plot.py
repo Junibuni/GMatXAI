@@ -5,6 +5,8 @@ from sklearn.metrics import r2_score, mean_absolute_error, root_mean_squared_err
 import os
 import pandas as pd
 
+from src.utils.data import reverse_standardization
+
 def plot_parity(
     model, 
     test_loader, 
@@ -25,6 +27,10 @@ def plot_parity(
 
     preds = torch.cat(preds).numpy()
     trues = torch.cat(trues).numpy()
+    
+    mean, std = -0.9633, 1.0722
+    pred = reverse_standardization(pred, mean, std)
+    trues = reverse_standardization(trues, mean, std)
 
     r2 = r2_score(trues, preds)
     mae = mean_absolute_error(trues, preds)

@@ -45,7 +45,10 @@ def atom_to_onehot(atom):
 class MaterialsGraphDataset(Dataset):
     """JSON → PyG Data object"""
 
-    def __init__(self, data_dir, target=None, prefixes=None, onehot=False):
+    def __init__(self, data_dir, target=None, prefixes=None, onehot=False, mean=-0.9633, std=1.0722, norm=True):
+        self.mean = mean
+        self.std = std
+        self.norm = norm
         self.data_dir = data_dir
         self.target_key = target
         self.is_onehot = onehot
@@ -97,6 +100,8 @@ class MaterialsGraphDataset(Dataset):
             raise KeyError(f"{material_id} is missing required key: {e}")
 
         y = torch.tensor([y_values], dtype=torch.float)
+        if self.norm:
+            y = (y - self.mean) / self.std
 
         data = Data(
             x=x,
