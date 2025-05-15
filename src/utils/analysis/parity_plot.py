@@ -44,8 +44,8 @@ def plot_parity(
 
     # plt.xlabel("True")
     # plt.ylabel("Predicted")
-    plt.xlabel(r'$\mathrm{DFT E_f\ per\ atom\ (eV/atom)}$')
-    plt.ylabel(r'$\mathrm{Predicted E_f\ per\ atom\ (eV/atom)}$')
+    plt.xlabel(r'$\mathrm{DFT\ E_f\ per\ atom\ (eV/atom)}$')
+    plt.ylabel(r'$\mathrm{Predicted\ E_f\ per\ atom\ (eV/atom)}$')
     plt.axis("equal")
 
     plt.text(
