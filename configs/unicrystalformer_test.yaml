@@ -20,8 +20,6 @@ model:
   fc_features: 256
   output_features: 1
   num_heads: 4
-  mix_layers: True
-  mixer_type: cross_attention
   dropout: 0.1
   radius: 8.0
 
