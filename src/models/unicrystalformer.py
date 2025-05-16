@@ -30,20 +30,39 @@ class AtomEncoder(nn.Module):
         fused = gate * emb + (1 - gate) * megnet
         return self.out_proj(fused)
 
-class UniLayer(nn.Module):
-    def __init__(self, hidden_dim, radius, heads, edge_dim, dropout=0.1):
+class CartNetBlock(nn.Module):
+    def __init__(self, num_layers, hidden_dim, radius, dropout=0.1):
         super().__init__()
-        self.cartnet = CartNet_layer(dim_in=hidden_dim, radius=radius)
-        self.matformer = MatformerConv(
+        self.layers = nn.ModuleList([CartNet_layer(dim_in=hidden_dim, radius=radius) for _ in range(num_layers)])
+        self.norms = nn.ModuleList([GraphNorm(hidden_dim) for _ in range(num_layers)])
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, batch):
+        h = batch.x
+        for layer, norm in zip(self.layers, self.norms):
+            batch = layer(batch)
+            h_new = norm(batch.x, batch.batch)
+            h = h + self.dropout(h_new)
+            batch.x = h
+        return batch
+
+class MatformerBlock(nn.Module):
+    def __init__(self, num_layers, hidden_dim, num_heads, edge_dim, dropout=0.1):
+        super().__init__()
+        self.convs = nn.ModuleList([MatformerConv(
             in_channels=hidden_dim,
             out_channels=hidden_dim,
-            heads=heads,
+            heads=num_heads,
             edge_dim=edge_dim,
             concat=False,
             beta=True
-        )
-        self.norm_cart = GraphNorm(hidden_dim)
-        self.norm_mat = GraphNorm(hidden_dim)
+        ) for _ in range(num_layers)])
+        self.ffns = nn.ModuleList([nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim * 2),
+            nn.SiLU(),
+            nn.Linear(hidden_dim * 2, hidden_dim)
+        ) for _ in range(num_layers)])
+        self.norms = nn.ModuleList([GraphNorm(hidden_dim) for _ in range(num_layers)])
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, batch):
@@ -51,21 +70,32 @@ class UniLayer(nn.Module):
         edge_index = batch.edge_index
         edge_attr = batch.edge_attr
         batch_idx = batch.batch
-
-        batch_cart = self.cartnet(batch)
-        h_cart = self.norm_cart(batch_cart.x, batch_idx)
-        h = h + self.dropout(h_cart)
-
-        h_mat = self.matformer(h, edge_index, edge_attr)
-        h_mat = self.norm_mat(h_mat, batch_idx)
-        h = h + self.dropout(h_mat)
-
+        for conv, ffn, norm in zip(self.convs, self.ffns, self.norms):
+            h_new = conv(h, edge_index, edge_attr)
+            h_new = ffn(h_new)
+            h_new = norm(h_new, batch_idx)
+            h = h + self.dropout(h_new)
         batch.x = h
         return batch
 
+class AttentionFusionMixer(nn.Module):
+    def __init__(self, hidden_dim):
+        super().__init__()
+        self.score_mlp = nn.Linear(hidden_dim, 1)
+
+    def forward(self, h_A, h_B):
+        score_A = self.score_mlp(h_A)
+        score_B = self.score_mlp(h_B)
+        weights = torch.softmax(torch.cat([score_A, score_B], dim=1), dim=1)
+        w_A = weights[:, 0].unsqueeze(1)
+        w_B = weights[:, 1].unsqueeze(1)
+        h_out = w_A * h_A + w_B * h_B
+        return h_out
+
 class UniCrystalFormer(nn.Module):
     def __init__(self,
-        conv_layers: int = 3,
+        num_cart_layers: int = 3,
+        num_mat_layers: int = 2,
         edge_features: int = 128,
         hidden_dim: int = 128,
         fc_features: int = 128,
@@ -75,7 +105,8 @@ class UniCrystalFormer(nn.Module):
         radius: float = 8.0
     ):
         super().__init__()
-        self.conv_layers = conv_layers
+        self.num_cart_layers = num_cart_layers
+        self.num_mat_layers = num_mat_layers
         
         # Atom embedding
         num_atom_types = 119
@@ -89,19 +120,14 @@ class UniCrystalFormer(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
         )
         
-        # Convolutional layers
-        self.uni_layers = nn.ModuleList(
-            [
-                UniLayer(
-                    hidden_dim,
-                    radius,
-                    num_heads,
-                    edge_dim=edge_features,
-                    dropout=dropout
-                )
-                for _ in range(conv_layers)
-            ]
-        )
+        # CartNet block
+        self.cartnet_block = CartNetBlock(num_cart_layers, hidden_dim, radius, dropout)
+        
+        # Matformer block
+        self.matformer_block = MatformerBlock(num_mat_layers, hidden_dim, num_heads, edge_features, dropout)
+        
+        # Mixer
+        self.mixer = AttentionFusionMixer(hidden_dim)
         
         # Readout and final FC layers
         self.readout = Set2Set(hidden_dim, processing_steps=3)
@@ -130,12 +156,20 @@ class UniCrystalFormer(nn.Module):
         data.x = node_features
         data.edge_attr = edge_attr
         
-        # Apply convolutional layers
-        for layer in self.uni_layers:
-            data = layer(data)
+        # Clone for branches
+        batch_cart = data.clone()
+        batch_mat = data.clone()
+        
+        # Apply blocks
+        batch_cart = self.cartnet_block(batch_cart)
+        batch_mat = self.matformer_block(batch_mat)
+        
+        # Mix outputs
+        h_cart = batch_cart.x
+        h_mat = batch_mat.x
+        x_out = self.mixer(h_cart, h_mat)
         
         # Readout and final prediction
-        x_out = data.x
         features = self.readout(x_out, data.batch)
         out = self.fc_readout(features)
         return out
@@ -143,7 +177,8 @@ class UniCrystalFormer(nn.Module):
     @classmethod
     def from_config(cls, config):
         return cls(
-            conv_layers=config.get("conv_layers", 3),
+            num_cart_layers=config.get("num_cart_layers", 3),
+            num_mat_layers=config.get("num_mat_layers", 2),
             edge_features=config.get("edge_features", 128),
             hidden_dim=config.get("hidden_dim", 128),
             fc_features=config.get("fc_features", 128),

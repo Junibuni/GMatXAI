@@ -14,10 +14,11 @@ data:
   seed: 42
 
 model:
-  conv_layers: 6
-  edge_features: 256
-  hidden_dim: 256
-  fc_features: 256
+  num_cart_layers: 3
+  num_mat_layers: 2
+  edge_features: 128
+  hidden_dim: 128
+  fc_features: 128
   output_features: 1
   num_heads: 4
   dropout: 0.1
@@ -26,7 +27,7 @@ model:
 
 training:
   device: cuda
-  epochs: 1500
+  epochs: 500
   lr: 0.001
 
   optimizer:
@@ -35,5 +36,5 @@ training:
 
   scheduler:
     name: onecycle
-    max_lr: 0.003
-    pct_start: 0.2
+    max_lr: 0.005
+    pct_start: 0.1
