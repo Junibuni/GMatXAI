@@ -80,6 +80,7 @@ def run_single_experiment(config_path: str, tag_override: str = None):
         **cfg.training.scheduler
     )
 
+    loss_fn = nn.HuberLoss(delta=0.3, reduction='mean')
     trainer = Trainer(
         model=model,
         train_loader=train_loader,
