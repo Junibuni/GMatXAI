@@ -30,13 +30,15 @@ def get_loaders(
     seed=42,
     jitter_std=0.01,
     prefixes=["JVASP", "mp"],
-    norm=True
+    norm=True,
+    mean=0.0,
+    std=1.0
 ):
-    full_dataset = MaterialsGraphDataset(data_dir, target=target, prefixes=prefixes, onehot=onehot, norm=norm)
+    full_dataset = MaterialsGraphDataset(data_dir, target=target, prefixes=prefixes, onehot=onehot, norm=norm, mean=mean, std=std)
 
     train_idx, val_idx, test_idx = split_dataset(len(full_dataset),
                                                  train_ratio, val_ratio, seed)
-    train_dataset = MaterialsGraphDataset(data_dir, target=target, prefixes=prefixes, onehot=onehot, norm=norm)
+    train_dataset = MaterialsGraphDataset(data_dir, target=target, prefixes=prefixes, onehot=onehot, norm=norm, mean=mean, std=std)
     train_dataset.transform = SO3RotateAndJitter(jitter_std=jitter_std)
     train_dataset = Subset(train_dataset, train_idx)
 

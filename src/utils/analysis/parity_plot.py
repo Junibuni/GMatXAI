@@ -28,8 +28,8 @@ def plot_parity(
     preds = torch.cat(preds).numpy()
     trues = torch.cat(trues).numpy()
     
-    mean, std = -0.9633, 1.0722
-    pred = reverse_standardization(pred, mean, std)
+    mean, std = test_loader.dataset.mean, test_loader.dataset.std
+    pred = reverse_standardization(preds, mean, std)
     trues = reverse_standardization(trues, mean, std)
 
     r2 = r2_score(trues, preds)
