@@ -5,17 +5,18 @@ import time
 import torch.nn as nn
 import matplotlib.pyplot as plt
 
-from src.utils.config import load_config
-from src.utils.io import save_model
 from src.models.model_registry import get_model
 from src.data.loader import get_loaders
 from src.train.trainer import Trainer
-from src.utils.optim import get_optimizer, get_scheduler
+from src.utils.io import save_model
 from src.utils.seed import set_seed
+from src.utils.config import load_config
+from src.utils.loss import get_loss_function
 from src.utils.data import sample_explanation_data
+from src.utils.analysis.parity_plot import plot_parity
+from src.utils.optim import get_optimizer, get_scheduler
 from src.xai.wrappers import CGCNNWrapper
 from src.xai.batch_explainer import explain_batch
-from src.utils.analysis.parity_plot import plot_parity
 
 
 def create_output_dirs(tag, root="outputs"):
@@ -60,10 +61,10 @@ def run_single_experiment(config_path: str, tag_override: str = None):
         assert len(cfg.data.target) == cfg.model.output_dim,\
             f"The number of targets({len(cfg.data.target)}) does not match config.model.output_dim({cfg.model.output_dim})"
     
-    print(f"\nLoad Model ({cfg.experiment.model_name}) with Hyperparamters:\n{cfg.model}")
+    print(f"\nLoad Model ({cfg.experiment.model_name}) with Hyperparamters:\n\t{cfg.model}")
     model = get_model(cfg.experiment.model_name, config=cfg.model)
 
-    print(f"\nOptimizer Config: {cfg.training.optimizer}")
+    print(f"\nOptimizer Config: \n\t{cfg.training.optimizer}")
     optimizer = get_optimizer(
         optim_type=cfg.training.optimizer.name,
         model_parameters=model.parameters(),
@@ -73,14 +74,15 @@ def run_single_experiment(config_path: str, tag_override: str = None):
     
     cfg.training.scheduler.epochs = cfg.training.epochs
     cfg.training.scheduler.steps_per_epoch = len(train_loader)
-    print(f"\nScheduler Config: {cfg.training.scheduler}")
+    print(f"\nScheduler Config: \n\t{cfg.training.scheduler}")
     scheduler = get_scheduler(
         scheduler_type=cfg.training.scheduler.name,
         optimizer=optimizer,
         **cfg.training.scheduler
     )
 
-    loss_fn = nn.HuberLoss(delta=0.3, reduction='mean')
+    print(f"\nLoss Funciton Config: \n\t{cfg.training.loss_fn}")
+    loss_fn = get_loss_function(cfg.training.loss_fn)
     trainer = Trainer(
         model=model,
         train_loader=train_loader,
@@ -93,7 +95,7 @@ def run_single_experiment(config_path: str, tag_override: str = None):
         loss_fn=loss_fn
     )
 
-    print(f"\nStart Training {tag} With { {k: cfg.training.get(k) for k in ['device', 'epochs', 'lr']} }", end="\n\n")
+    print(f"\nStart Training {tag} With \n\t{ {k: cfg.training.get(k) for k in ['device', 'epochs', 'lr']} }", end="\n\n")
     start_time = time.time()
     best_model = trainer.train(num_epochs=cfg.training.epochs)
     end_time = time.time()
