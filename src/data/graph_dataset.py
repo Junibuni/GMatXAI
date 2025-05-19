@@ -44,8 +44,7 @@ def atom_to_onehot(atom):
 
 class MaterialsGraphDataset(Dataset):
     """JSON → PyG Data object"""
-
-    def __init__(self, data_dir, target=None, prefixes=None, onehot=False, mean=-0.9633, std=1.0722, norm=True):
+    def __init__(self, data_dir, target=None, prefixes=None, onehot=False, mean=0.0, std=1.0, norm=True):
         self.mean = mean
         self.std = std
         self.norm = norm
