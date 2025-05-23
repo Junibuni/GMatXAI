@@ -19,6 +19,12 @@ Generate dataset
 ```
 python data/make_dataset.py --nn_strategy crystal
 ```
+--> deprecated (no need for args)
+
+```
+python data/make_dataset.py
+```
+or download from [link](https://figshare.com/projects/Bulk_and_shear_datasets/165430) (train, val, test)
 
 Train model
 ```
