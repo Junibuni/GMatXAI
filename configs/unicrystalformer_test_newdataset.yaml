@@ -1,0 +1,42 @@
+experiment:
+  model_name: unicrystal
+  explain_material_ids: []
+
+data:
+  data_dir: data/megnet
+  target: [formation_energy_per_atom]
+  batch_size: 64
+  num_workers: 0
+  train_ratio: 0.8
+  val_ratio: 0.1
+  onehot: false
+  jitter_std: 0.01
+  seed: 42
+
+model:
+  num_cart_layers: 3
+  num_mat_layers: 2
+  edge_features: 128
+  hidden_dim: 128
+  fc_features: 128
+  output_features: 1
+  num_heads: 4
+  dropout: 0.1
+  radius: 8.0
+
+
+training:
+  device: cuda
+  epochs: 500
+  lr: 0.001
+  loss_fn:
+    type: logcosh
+
+  optimizer:
+    name: adamw
+    weight_decay: 0.01
+
+  scheduler:
+    name: onecycle
+    max_lr: 0.005
+    pct_start: 0.1

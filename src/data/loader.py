@@ -1,73 +1,94 @@
-import os
+# Copyright Universitat Politècnica de Catalunya 2024 https://imatge.upc.edu
+# Distributed under the MIT License.
+# (See accompanying file README.md file or copy at http://opensource.org/licenses/MIT)
+
 import random
+import math
+import os.path as osp
+import numpy as np
+import pickle as pk
 
 import torch
-from torch.utils.data import Subset
 from torch_geometric.loader import DataLoader
-from torch.utils.data import Subset
 
-from src.data.graph_dataset import MaterialsGraphDataset
-from src.utils.transforms import SO3RotateAndJitter
-
-def split_dataset(dataset_len, train_ratio=0.8, val_ratio=0.1, seed=42):
-    indices = list(range(dataset_len))
-    random.seed(seed)
-    random.shuffle(indices)
-
-    train_end = int(train_ratio * dataset_len)
-    val_end   = int((train_ratio + val_ratio) * dataset_len)
-
-    return indices[:train_end], indices[train_end:val_end], indices[val_end:]
+from src.data.figshare_dataset import Figshare_Dataset
 
 def get_loaders(
     data_dir,
     target=None,
     batch_size=32,
     num_workers=0,
-    train_ratio=0.8,
-    val_ratio=0.1,
-    onehot=False,
+    radius=5.0,
     seed=42,
-    jitter_std=0.01,
-    prefixes=["JVASP", "mp"],
+    dataset_name='megnet',
+    max_neighbours=25,
     norm=True,
     mean=0.0,
     std=1.0
 ):
-    full_dataset = MaterialsGraphDataset(data_dir, target=target, prefixes=prefixes, onehot=onehot, norm=norm, mean=mean, std=std)
+    """
+    Create data loader object
 
-    train_idx, val_idx, test_idx = split_dataset(len(full_dataset),
-                                                 train_ratio, val_ratio, seed)
-    train_dataset = MaterialsGraphDataset(data_dir, target=target, prefixes=prefixes, onehot=onehot, norm=norm, mean=mean, std=std)
-    train_dataset.transform = SO3RotateAndJitter(jitter_std=jitter_std)
-    train_dataset = Subset(train_dataset, train_idx)
+    Returns: List of PyTorch data loaders
 
-    val_dataset   = Subset(full_dataset, val_idx)
-    test_dataset  = Subset(full_dataset, test_idx)
+    """
+    train_pth = osp.join(data_dir, "bulk_megnet_train.pkl")
+    val_pth = osp.join(data_dir, "bulk_megnet_val.pkl")
+    test_pth = osp.join(data_dir, "bulk_megnet_test.pkl")
 
-    print(f"Total {len(full_dataset)} Data: Train({len(train_dataset)}) / Val({len(val_dataset)}) / Test({len(test_dataset)})")
+    try:
+        data_train = pk.load(open(train_pth, "rb"))
+        data_val = pk.load(open(val_pth, "rb"))
+        data_test = pk.load(open(test_pth, "rb"))
+    except:
+        raise Exception("Bulk modulus dataset not found, please download it from https://figshare.com/projects/Bulk_and_shear_datasets/165430")
+    
+    targets_train = []
+    dat_train = []
+    targets_val = []
+    dat_val = []
+    targets_test = []
+    dat_test = []
+    for split, datalist, targets in zip([data_train, data_val, data_test], 
+                                    [dat_train, dat_val, dat_test],
+                                    [targets_train, targets_val, targets_test]):
+        for i in split:
+            if (
+                i[target] is not None
+                and i[target] != "na"
+                and not math.isnan(i[target])
+            ):
+                datalist.append(i)
+                targets.append(i[target])
 
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-        pin_memory=torch.cuda.is_available(),
-        drop_last=True
-    )
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
-        pin_memory=torch.cuda.is_available()
-    )
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
-        pin_memory=torch.cuda.is_available()
-    )
-
+    prefix = dataset_name+"_"+str(radius)+"_"+str(max_neighbours)+"_"+target+"_"+str(seed)
+    dataset_train = Figshare_Dataset(root=data_dir, data=dat_train, targets=targets_train, radius=radius, max_neigh=max_neighbours, name=prefix+"_train")
+    dataset_val = Figshare_Dataset(root=data_dir, data=dat_val, targets=targets_val, radius=radius, max_neigh=max_neighbours, name=prefix+"_val")
+    dataset_test = Figshare_Dataset(root=data_dir, data=dat_test, targets=targets_test, radius=radius, max_neigh=max_neighbours, name=prefix+"_test")
+    
+    train_loader = DataLoader(dataset_train, batch_size=batch_size, persistent_workers=True,
+                                  shuffle=True, num_workers=num_workers,
+                                  pin_memory=True),
+    val_loader = DataLoader(dataset_val, batch_size=batch_size, persistent_workers=True,
+                                    shuffle=False, num_workers=num_workers,
+                                    pin_memory=True),
+    test_loader = DataLoader(dataset_test, batch_size=batch_size, persistent_workers=False,
+                                    shuffle=False, num_workers=num_workers,
+                                    pin_memory=True)
+    
     return train_loader, val_loader, test_loader
+
+
+
+def create_train_val_test(data, val_ratio=0.1, test_ratio=0.1, seed=123):
+    ids = list(np.arange(len(data)))
+    n = len(data)
+    n_val = int(n * val_ratio)
+    n_test = int(n * test_ratio)
+    n_train = n - n_val - n_test
+    random.seed(seed)
+    random.shuffle(ids)
+    ids_train = ids[:n_train]
+    ids_val = ids[-(n_val + n_test): -n_test]
+    ids_test = ids[-n_test:]
+    return ids_train, ids_val, ids_test
