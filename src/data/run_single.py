@@ -42,6 +42,21 @@ def run_single_experiment(config_path: str, tag_override: str = None):
     mean, std = -0.9633, 1.0722
     if norm:
         print(f"Normalize data with mean({mean}), std({std})")
+    ## Legacy
+    # train_loader, val_loader, test_loader = get_loaders(
+    #     data_dir=cfg.data.data_dir,
+    #     target=cfg.data.target,
+    #     batch_size=cfg.data.batch_size,
+    #     num_workers=cfg.data.num_workers,
+    #     train_ratio=cfg.data.train_ratio,
+    #     val_ratio=cfg.data.val_ratio,
+    #     onehot=cfg.data.onehot,
+    #     jitter_std=cfg.data.jitter_std,
+    #     seed=cfg.data.seed,
+    #     norm=norm,
+    #     mean=mean,
+    #     std=std
+    # )
     train_loader, val_loader, test_loader = get_loaders(
         data_dir=cfg.data.data_dir,
         target=cfg.data.target,
