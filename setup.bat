@@ -5,6 +5,7 @@ python -m venv venv
 call .\venv\Scripts\activate
 
 echo [1/5] Installing from requirements.txt...
+pip install --upgrade pip wheel setuptools
 pip install -r requirements.txt
 
 echo [2/5] Installing PyTorch (%CUDA_VERSION%)...
