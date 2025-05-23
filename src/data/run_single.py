@@ -62,14 +62,10 @@ def run_single_experiment(config_path: str, tag_override: str = None):
         target=cfg.data.target,
         batch_size=cfg.data.batch_size,
         num_workers=cfg.data.num_workers,
-        train_ratio=cfg.data.train_ratio,
-        val_ratio=cfg.data.val_ratio,
-        onehot=cfg.data.onehot,
-        jitter_std=cfg.data.jitter_std,
+        radius=cfg.data.radius,
         seed=cfg.data.seed,
-        norm=norm,
-        mean=mean,
-        std=std
+        dataset_name=cfg.data.dataset,
+        max_neighbors=25
     )
 
     if cfg.model.output_dim:

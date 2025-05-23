@@ -15,14 +15,14 @@ from src.data.figshare_dataset import Figshare_Dataset
 
 def get_loaders(
     data_dir,
-    target=None,
+    target='e_form',
     batch_size=32,
     num_workers=0,
     radius=5.0,
     seed=42,
     dataset_name='megnet',
-    max_neighbours=25,
-    norm=True,
+    max_neighbors=25,
+    norm=False,
     mean=0.0,
     std=1.0
 ):
@@ -61,10 +61,10 @@ def get_loaders(
                 datalist.append(i)
                 targets.append(i[target])
 
-    prefix = dataset_name+"_"+str(radius)+"_"+str(max_neighbours)+"_"+target+"_"+str(seed)
-    dataset_train = Figshare_Dataset(root=data_dir, data=dat_train, targets=targets_train, radius=radius, max_neigh=max_neighbours, name=prefix+"_train")
-    dataset_val = Figshare_Dataset(root=data_dir, data=dat_val, targets=targets_val, radius=radius, max_neigh=max_neighbours, name=prefix+"_val")
-    dataset_test = Figshare_Dataset(root=data_dir, data=dat_test, targets=targets_test, radius=radius, max_neigh=max_neighbours, name=prefix+"_test")
+    prefix = dataset_name+"_"+str(radius)+"_"+str(max_neighbors)+"_"+target+"_"+str(seed)
+    dataset_train = Figshare_Dataset(root=data_dir, data=dat_train, targets=targets_train, radius=radius, max_neigh=max_neighbors, name=prefix+"_train")
+    dataset_val = Figshare_Dataset(root=data_dir, data=dat_val, targets=targets_val, radius=radius, max_neigh=max_neighbors, name=prefix+"_val")
+    dataset_test = Figshare_Dataset(root=data_dir, data=dat_test, targets=targets_test, radius=radius, max_neigh=max_neighbors, name=prefix+"_test")
     
     train_loader = DataLoader(dataset_train, batch_size=batch_size, persistent_workers=True,
                                   shuffle=True, num_workers=num_workers,

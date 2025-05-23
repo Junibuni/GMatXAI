@@ -6,7 +6,8 @@ from torch.utils.data import Subset
 from torch_geometric.loader import DataLoader
 from torch.utils.data import Subset
 
-from src.data.graph_dataset import MaterialsGraphDataset
+# legacy file
+from src.data.graph_dataset_legacy import MaterialsGraphDataset
 from src.utils.transforms import SO3RotateAndJitter
 
 def split_dataset(dataset_len, train_ratio=0.8, val_ratio=0.1, seed=42):
