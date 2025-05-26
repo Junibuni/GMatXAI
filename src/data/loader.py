@@ -72,7 +72,7 @@ def get_loaders(
                 targets.append(i[target])
 
     prefix = dataset_name+"_"+str(radius)+"_"+str(max_neighbors)+"_"+target+"_"+str(seed)
-    dataset_train = Figshare_Dataset(root=data_dir, data=dat_train, targets=targets_train, radius=radius, max_neigh=max_neighbors, name=prefix+"_train")
+    dataset_train = Figshare_Dataset(root=data_dir, data=dat_train, targets=targets_train, radius=radius, max_neigh=max_neighbors, name=prefix+"_train", augment=True)
     dataset_val = Figshare_Dataset(root=data_dir, data=dat_val, targets=targets_val, radius=radius, max_neigh=max_neighbors, name=prefix+"_val")
     dataset_test = Figshare_Dataset(root=data_dir, data=dat_test, targets=targets_test, radius=radius, max_neigh=max_neighbors, name=prefix+"_test")
     
