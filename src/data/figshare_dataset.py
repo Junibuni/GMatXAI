@@ -84,6 +84,7 @@ class Figshare_Dataset(InMemoryDataset):
             data.atom_megnet_embed = atom_megnet_embed
 
             data.edge_index = edge_index
+            data.edge_attr = cart_vector
             delattr(data, "pbc")
             data_list.append(data)
 
