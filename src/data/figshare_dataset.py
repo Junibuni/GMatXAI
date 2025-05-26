@@ -8,18 +8,21 @@ from torch_geometric.data import Data, Batch
 from torch_geometric.data import InMemoryDataset
 
 from src.data.utils import radius_graph_pbc, optmize_lattice
+from src.utils.atom_info import MEGNET_ATOM_EMBEDDING
 
+def get_megnet_embedding(symbol: str):
+    return torch.tensor(MEGNET_ATOM_EMBEDDING.get(symbol, [0.0] * 16), dtype=torch.float)
 class Figshare_Dataset(InMemoryDataset):
     def __init__(self, root, data, targets, transform=None, pre_transform=None, name="jarvis", radius=5.0, max_neigh=-1, augment=False):
         
-        self.data = data
-        self.targets = targets
+        self._input_data = data
+        self._input_targets = targets
         self.name = name
         self.radius = radius
         self.max_neigh = max_neigh if max_neigh > 0 else None
         self.augment = augment
         super(Figshare_Dataset, self).__init__(root, transform, pre_transform)
-        self.data, self.slices = torch.load(self.processed_paths[0])
+        self._data, self.slices = torch.load(self.processed_paths[0], weights_only=False)
 
     @property
     def raw_file_names(self):
@@ -50,7 +53,7 @@ class Figshare_Dataset(InMemoryDataset):
 
     def process(self):
         data_list = []
-        for i, (ddat, target) in tqdm(enumerate(zip(self.data, self.targets)),total=len(self.data)):
+        for i, (ddat, target) in tqdm(enumerate(zip(self._input_data, self._input_targets)), total=len(self._input_data)):
             structure = Atoms.from_dict(ddat["atoms"])
             atomic_numbers = torch.tensor([get_node_attributes(s, atom_features="atomic_number") for s in structure.elements]).squeeze(-1)
             target = torch.tensor(target)
@@ -68,6 +71,17 @@ class Figshare_Dataset(InMemoryDataset):
             data.cart_dist = torch.norm(cart_vector, p=2, dim=-1)
             data.cart_dir = torch.nn.functional.normalize(cart_vector, p=2, dim=-1)
             
+            try:
+                megnet_embeds = [
+                    torch.tensor(MEGNET_ATOM_EMBEDDING[symbol], dtype=torch.float)
+                    if symbol in MEGNET_ATOM_EMBEDDING else torch.zeros(16)
+                    for symbol in structure.elements
+                ]
+            except Exception as e:
+                raise ValueError(f"MEGNet Embedding Error: {e}")
+            
+            atom_megnet_embed = torch.stack(megnet_embeds, dim=0)
+            data.atom_megnet_embed = atom_megnet_embed
 
             data.edge_index = edge_index
             delattr(data, "pbc")
