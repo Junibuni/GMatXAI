@@ -32,6 +32,16 @@ def get_loaders(
     Returns: List of PyTorch data loaders
 
     """
+    
+    # hard-coded
+    if isinstance(target, list):
+        if len(target) == 1:
+            target = target[0]
+        else:
+            raise TypeError(f'Data Target Name must be 1')
+    else:
+        pass
+        
     train_pth = osp.join(data_dir, "bulk_megnet_train.pkl")
     val_pth = osp.join(data_dir, "bulk_megnet_val.pkl")
     test_pth = osp.join(data_dir, "bulk_megnet_test.pkl")
@@ -68,10 +78,10 @@ def get_loaders(
     
     train_loader = DataLoader(dataset_train, batch_size=batch_size, persistent_workers=True,
                                   shuffle=True, num_workers=num_workers,
-                                  pin_memory=True),
+                                  pin_memory=True)
     val_loader = DataLoader(dataset_val, batch_size=batch_size, persistent_workers=True,
                                     shuffle=False, num_workers=num_workers,
-                                    pin_memory=True),
+                                    pin_memory=True)
     test_loader = DataLoader(dataset_test, batch_size=batch_size, persistent_workers=False,
                                     shuffle=False, num_workers=num_workers,
                                     pin_memory=True)
