@@ -6,8 +6,8 @@ data:
   data_dir: data/megnet
   dataset: megnet
   target: [e_form]
-  batch_size: 64
-  num_workers: 0
+  batch_size: 32
+  num_workers: 1
   radius: 5.0
   seed: 42
   max_neighbors: 25
