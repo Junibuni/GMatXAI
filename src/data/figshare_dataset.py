@@ -13,10 +13,11 @@ from src.utils.atom_info import MEGNET_ATOM_EMBEDDING
 def get_megnet_embedding(symbol: str):
     return torch.tensor(MEGNET_ATOM_EMBEDDING.get(symbol, [0.0] * 16), dtype=torch.float)
 class Figshare_Dataset(InMemoryDataset):
-    def __init__(self, root, data, targets, transform=None, pre_transform=None, name="jarvis", radius=5.0, max_neigh=-1, augment=False):
+    def __init__(self, root, data, targets, transform=None, pre_transform=None, name="jarvis", radius=5.0, max_neigh=-1, augment=False, mode=""):
         
         self._input_data = data
         self._input_targets = targets
+        self.mode = mode
         self.name = name
         self.radius = radius
         self.max_neigh = max_neigh if max_neigh > 0 else None
@@ -53,7 +54,7 @@ class Figshare_Dataset(InMemoryDataset):
 
     def process(self):
         data_list = []
-        for i, (ddat, target) in tqdm(enumerate(zip(self._input_data, self._input_targets)), total=len(self._input_data)):
+        for i, (ddat, target) in tqdm(enumerate(zip(self._input_data, self._input_targets)), total=len(self._input_data), desc=f"{self.mode} data"):
             structure = Atoms.from_dict(ddat["atoms"])
             atomic_numbers = torch.tensor([get_node_attributes(s, atom_features="atomic_number") for s in structure.elements]).squeeze(-1)
             target = torch.tensor(target)
