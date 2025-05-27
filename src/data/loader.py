@@ -15,12 +15,12 @@ from src.data.figshare_dataset import Figshare_Dataset
 
 def get_loaders(
     data_dir,
-    target='e_form',
+    target='formation_energy_per_atom',
     batch_size=32,
     num_workers=0,
     radius=5.0,
     seed=42,
-    dataset_name='megnet',
+    dataset_name='mpjv',
     max_neighbors=25,
     norm=False,
     mean=0.0,
@@ -42,16 +42,16 @@ def get_loaders(
     else:
         pass
         
-    train_pth = osp.join(data_dir, "bulk_megnet_train.pkl")
-    val_pth = osp.join(data_dir, "bulk_megnet_val.pkl")
-    test_pth = osp.join(data_dir, "bulk_megnet_test.pkl")
+    train_pth = osp.join(data_dir, "train.pkl")
+    val_pth = osp.join(data_dir, "val.pkl")
+    test_pth = osp.join(data_dir, "test.pkl")
 
     try:
         data_train = pk.load(open(train_pth, "rb"))
         data_val = pk.load(open(val_pth, "rb"))
         data_test = pk.load(open(test_pth, "rb"))
     except:
-        raise Exception("Bulk modulus dataset not found, please download it from https://figshare.com/projects/Bulk_and_shear_datasets/165430")
+        raise Exception("Dataset not found. Run >> python data make_dataset.py")
     
     targets_train = []
     dat_train = []
@@ -72,9 +72,9 @@ def get_loaders(
                 targets.append(i[target])
 
     prefix = dataset_name+"_"+str(radius)+"_"+str(max_neighbors)+"_"+target+"_"+str(seed)
-    dataset_train = Figshare_Dataset(root=data_dir, data=dat_train, targets=targets_train, radius=radius, max_neigh=max_neighbors, name=prefix+"_train", augment=True)
-    dataset_val = Figshare_Dataset(root=data_dir, data=dat_val, targets=targets_val, radius=radius, max_neigh=max_neighbors, name=prefix+"_val")
-    dataset_test = Figshare_Dataset(root=data_dir, data=dat_test, targets=targets_test, radius=radius, max_neigh=max_neighbors, name=prefix+"_test")
+    dataset_train = Figshare_Dataset(root=data_dir, data=dat_train, targets=targets_train, radius=radius, max_neigh=max_neighbors, name=prefix+"_train", mode="train", augment=True)
+    dataset_val = Figshare_Dataset(root=data_dir, data=dat_val, targets=targets_val, radius=radius, max_neigh=max_neighbors, name=prefix+"_val", mode="val")
+    dataset_test = Figshare_Dataset(root=data_dir, data=dat_test, targets=targets_test, radius=radius, max_neigh=max_neighbors, name=prefix+"_test", mode="test")
     
     train_loader = DataLoader(dataset_train, batch_size=batch_size, persistent_workers=True,
                                   shuffle=True, num_workers=num_workers,
