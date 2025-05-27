@@ -10,6 +10,7 @@ env/
 data/processed/*
 data/raw/*
 data/megnet/*
+data/*/
 
 outputs/*
 
