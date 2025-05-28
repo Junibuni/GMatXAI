@@ -1,6 +1,8 @@
 # GNN-Based Materials Property Prediction
 
 ## Setting
+python version used: 3.10.10
+
 (windows)
 ```
 setup.bat
