@@ -57,7 +57,7 @@ class Figshare_Dataset(InMemoryDataset):
         for i, (ddat, target) in tqdm(enumerate(zip(self._input_data, self._input_targets)), total=len(self._input_data), desc=f"{self.mode} data"):
             structure = Atoms.from_dict(ddat["atoms"])
             atomic_numbers = torch.tensor([get_node_attributes(s, atom_features="atomic_number") for s in structure.elements]).squeeze(-1)
-            target = torch.tensor(target)
+            target = torch.tensor(target).view(-1, 1)
             data = Data(x=atomic_numbers, y=target)
             data.pos = torch.tensor(structure.cart_coords, dtype=torch.float32)
             data.cell = torch.tensor(structure.lattice.matrix, dtype=torch.float32)
