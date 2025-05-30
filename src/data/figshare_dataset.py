@@ -22,11 +22,11 @@ class Figshare_Dataset(InMemoryDataset):
         self.radius = radius
         self.max_neigh = max_neigh if max_neigh > 0 else None
         self.augment = augment
-        super(Figshare_Dataset, self).__init__(root, transform, pre_transform)
-        self._data, self.slices = torch.load(self.processed_paths[0], weights_only=False)
         self.norm = norm
         self.mean = mean
         self.std = std
+        super(Figshare_Dataset, self).__init__(root, transform, pre_transform)
+        self._data, self.slices = torch.load(self.processed_paths[0], weights_only=False)
 
     @property
     def raw_file_names(self):

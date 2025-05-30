@@ -27,7 +27,7 @@ model:
 
 training:
   device: cuda
-  epochs: 1000
+  epochs: 1300
   lr: 0.001
   loss_fn:
     type: l1
