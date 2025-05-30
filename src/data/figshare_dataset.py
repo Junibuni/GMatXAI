@@ -13,7 +13,7 @@ from src.utils.atom_info import MEGNET_ATOM_EMBEDDING
 def get_megnet_embedding(symbol: str):
     return torch.tensor(MEGNET_ATOM_EMBEDDING.get(symbol, [0.0] * 16), dtype=torch.float)
 class Figshare_Dataset(InMemoryDataset):
-    def __init__(self, root, data, targets, transform=None, pre_transform=None, name="jarvis", radius=5.0, max_neigh=-1, augment=False, mode=""):
+    def __init__(self, root, data, targets, transform=None, pre_transform=None, name="jarvis", radius=5.0, max_neigh=-1, augment=False, mode="", mean=1.0, std=0.0, norm=False):
         
         self._input_data = data
         self._input_targets = targets
@@ -24,6 +24,9 @@ class Figshare_Dataset(InMemoryDataset):
         self.augment = augment
         super(Figshare_Dataset, self).__init__(root, transform, pre_transform)
         self._data, self.slices = torch.load(self.processed_paths[0], weights_only=False)
+        self.norm = norm
+        self.mean = mean
+        self.std = std
 
     @property
     def raw_file_names(self):
@@ -58,6 +61,8 @@ class Figshare_Dataset(InMemoryDataset):
             structure = Atoms.from_dict(ddat["atoms"])
             atomic_numbers = torch.tensor([get_node_attributes(s, atom_features="atomic_number") for s in structure.elements]).squeeze(-1)
             target = torch.tensor(target).view(-1, 1)
+            if self.norm:
+                y = (y - self.mean) / self.std
             data = Data(x=atomic_numbers, y=target)
             data.pos = torch.tensor(structure.cart_coords, dtype=torch.float32)
             data.cell = torch.tensor(structure.lattice.matrix, dtype=torch.float32)

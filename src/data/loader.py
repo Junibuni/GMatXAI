@@ -72,9 +72,9 @@ def get_loaders(
                 targets.append(i[target])
 
     prefix = dataset_name+"_"+str(radius)+"_"+str(max_neighbors)+"_"+target+"_"+str(seed)
-    dataset_train = Figshare_Dataset(root=data_dir, data=dat_train, targets=targets_train, radius=radius, max_neigh=max_neighbors, name=prefix+"_train", mode="train", augment=True)
-    dataset_val = Figshare_Dataset(root=data_dir, data=dat_val, targets=targets_val, radius=radius, max_neigh=max_neighbors, name=prefix+"_val", mode="val")
-    dataset_test = Figshare_Dataset(root=data_dir, data=dat_test, targets=targets_test, radius=radius, max_neigh=max_neighbors, name=prefix+"_test", mode="test")
+    dataset_train = Figshare_Dataset(root=data_dir, data=dat_train, targets=targets_train, radius=radius, max_neigh=max_neighbors, name=prefix+"_train", mode="train", augment=True, mean=mean, std=std, norm=norm)
+    dataset_val = Figshare_Dataset(root=data_dir, data=dat_val, targets=targets_val, radius=radius, max_neigh=max_neighbors, name=prefix+"_val", mode="val", mean=mean, std=std, norm=norm)
+    dataset_test = Figshare_Dataset(root=data_dir, data=dat_test, targets=targets_test, radius=radius, max_neigh=max_neighbors, name=prefix+"_test", mode="test", mean=mean, std=std, norm=norm)
     
     train_loader = DataLoader(dataset_train, batch_size=batch_size, persistent_workers=True,
                                   shuffle=True, num_workers=num_workers,

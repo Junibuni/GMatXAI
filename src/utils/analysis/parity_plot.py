@@ -11,7 +11,8 @@ def plot_parity(
     model, 
     test_loader, 
     save_path: str, 
-    device: str = "cpu"
+    device: str = "cpu",
+    isNorm: bool = False
 ):
     model.to(device)
     model.eval()
@@ -28,9 +29,10 @@ def plot_parity(
     preds = torch.cat(preds).numpy()
     trues = torch.cat(trues).numpy()
     
-    mean, std = test_loader.dataset.mean, test_loader.dataset.std
-    pred = reverse_standardization(preds, mean, std)
-    trues = reverse_standardization(trues, mean, std)
+    if isNorm:
+        mean, std = test_loader.dataset.mean, test_loader.dataset.std
+        pred = reverse_standardization(preds, mean, std)
+        trues = reverse_standardization(trues, mean, std)
 
     r2 = r2_score(trues, preds)
     mae = mean_absolute_error(trues, preds)

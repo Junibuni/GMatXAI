@@ -38,7 +38,7 @@ def run_single_experiment(config_path: str, tag_override: str = None):
     set_seed(cfg.data.seed)
 
     print(f"\nLoad Dataset: {cfg.data.target}")
-    norm = True
+    norm = cfg.data.isNorm
     mean, std = -0.9633, 1.0722
     if norm:
         print(f"Normalize data with mean({mean}), std({std})")
@@ -65,7 +65,10 @@ def run_single_experiment(config_path: str, tag_override: str = None):
         radius=cfg.data.radius,
         seed=cfg.data.seed,
         dataset_name=cfg.data.dataset,
-        max_neighbors=25
+        max_neighbors=25,
+        mean=mean,
+        std=std,
+        norm=norm
     )
 
     if cfg.model.output_dim:
@@ -143,7 +146,7 @@ def run_single_experiment(config_path: str, tag_override: str = None):
     )
 
     print("\nPlot Parity")
-    plot_parity(model, test_loader, log_dir, device=cfg.training.device)
+    plot_parity(model, test_loader, log_dir, device=cfg.training.device, isNorm=cfg.data.isNorm)
     
     with open(os.path.join(log_dir, "config.yaml"), "w") as f:
         yaml.dump(cfg.to_dict(), f)

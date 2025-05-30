@@ -6,18 +6,19 @@ data:
   data_dir: data/mpjv
   dataset: mpjv
   target: [formation_energy_per_atom]
-  batch_size: 16
+  batch_size: 128
   num_workers: 1
-  radius: 5.0
+  radius: 8.0
   seed: 42
   max_neighbors: 25
+  is_norm: false
 
 model:
-  num_cart_layers: 3
-  num_mat_layers: 2
+  num_cart_layers: [3, 5]
+  num_mat_layers: [3, 5]
   edge_features: 128
   hidden_dim: 128
-  fc_features: 128
+  fc_features: [64, 128]
   output_features: 1
   num_heads: 4
   dropout: 0.1
@@ -26,7 +27,7 @@ model:
 
 training:
   device: cuda
-  epochs: 500
+  epochs: 1000
   lr: 0.001
   loss_fn:
     type: l1
