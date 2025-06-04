@@ -62,7 +62,7 @@ class Figshare_Dataset(InMemoryDataset):
             atomic_numbers = torch.tensor([get_node_attributes(s, atom_features="atomic_number") for s in structure.elements]).squeeze(-1)
             target = torch.tensor(target).view(-1, 1)
             if self.norm:
-                y = (y - self.mean) / self.std
+                target = (target - self.mean) / self.std
             data = Data(x=atomic_numbers, y=target)
             data.pos = torch.tensor(structure.cart_coords, dtype=torch.float32)
             data.cell = torch.tensor(structure.lattice.matrix, dtype=torch.float32)
