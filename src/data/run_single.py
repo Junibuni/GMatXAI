@@ -95,7 +95,7 @@ def run_single_experiment(config_path: str, tag_override: str = None):
         **cfg.training.scheduler
     )
 
-    print(f"\nLoss Funciton Config: \n\t{cfg.training.loss_fn}")
+    print(f"\nLoss Function Config: \n\t{cfg.training.loss_fn}")
     loss_fn = get_loss_function(cfg.training.loss_fn)
     trainer = Trainer(
         model=model,
