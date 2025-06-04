@@ -23,7 +23,7 @@ class CartNet(torch.nn.Module):
         temperature (bool, optional): If `True`, includes temperature information in the encoder. Default is `True`.
         use_envelope (bool, optional): If `True`, applies an envelope function to the interactions. Default is `True`.
         cholesky (bool, optional): If `True`, uses a Cholesky head for the output. If `False`, uses a scalar head. Default is `True`.
-        jk_mode (str, optional): Jumping knowledge aggregation strategy. One of ['cat', 'lstm', 'max', 'last']. Default is `'concat'`.
+        jk_mode (str, optional): Jumping knowledge aggregation strategy. One of ['cat', 'lstm', 'max', 'last']. Default is `'cat'`.
         layer_type (str, optional): Layer architecture type. One of ['transformer', 'default']. `'transformer'` enables Q/K/V attention with optional residuals. Default is `'transformer'`.
         use_residual (bool, optional): If `True`, adds residual connections in Transformer layers. Only applies when `layer_type='transformer'`. Default is `True`.
         num_heads (int, optional): Number of attention heads for Transformer-style layers. Only applies when `layer_type='transformer'`. Default is 4.
