@@ -64,6 +64,7 @@ class Figshare_Dataset(InMemoryDataset):
             if self.norm:
                 target = (target - self.mean) / self.std
             data = Data(x=atomic_numbers, y=target)
+            data.id = ddat["id"]
             data.pos = torch.tensor(structure.cart_coords, dtype=torch.float32)
             data.cell = torch.tensor(structure.lattice.matrix, dtype=torch.float32)
             data.pbc = torch.tensor([[True, True, True]])

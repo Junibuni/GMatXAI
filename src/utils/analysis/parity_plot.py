@@ -18,6 +18,7 @@ def plot_parity(
     model.eval()
     preds = []
     trues = []
+    material_id = []
 
     with torch.no_grad():
         for batch in test_loader:
@@ -25,6 +26,7 @@ def plot_parity(
             pred = model(batch)
             preds.append(pred.view(-1).cpu())
             trues.append(batch.y.view(-1).cpu())
+            material_id.extend(batch.id)
 
     preds = torch.cat(preds).numpy()
     trues = torch.cat(trues).numpy()
@@ -65,6 +67,7 @@ def plot_parity(
     
     df = pd.DataFrame({
         "True": trues,
-        "Predicted": preds
+        "Predicted": preds,
+        "Material_ID": material_id
     })
     df.to_csv(os.path.join(save_path, "parity_data.csv"), index=False)
