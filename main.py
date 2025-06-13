@@ -10,6 +10,7 @@ from pathlib import Path
 from copy import deepcopy
 
 from src.data.run_single import run_single_experiment
+from src.data.test_single import run_test
 from src.utils.config import load_config
 from src.utils.analysis.pcp import load_dataframe, pcp
 from src.utils.analysis.importance import analyze_param_importance
@@ -260,6 +261,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
     parser.add_argument("-A", "--analyze_results", action="store_true")
+    parser.add_argument("-T", "--test",  action="store_true")
+
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -271,6 +274,14 @@ def main():
             print("Not a sweep experiment")
             return
         run_analysis(args.config, sweep_keys)
+        return
+    
+    if args.test:
+        if sweep_keys:
+            print("Config file must be single experiment")
+            return
+        print("Test model")
+        run_test(args.config)
         return
 
     if sweep_keys:
