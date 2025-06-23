@@ -11,6 +11,7 @@ data/processed/*
 data/raw/*
 data/megnet/*
 data/*/
+data/*.zip
 
 outputs/*
 

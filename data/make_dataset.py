@@ -65,10 +65,8 @@ def mp_to_jarvis(mp_doc):
 
     return jarvis_dict
 
-def merge_and_split_save(a, b, val_ratio=0.1, test_ratio=0.1, seed=42, root="",
+def merge_and_split_save(data, val_ratio=0.1, test_ratio=0.1, seed=42, root="",
                          train_path='train.pkl', val_path='val.pkl', test_path='test.pkl'):
-    data = a + b
-    
     print(f"Collected {len(data)} structures.")
 
     random.seed(seed)
@@ -120,17 +118,26 @@ def main():
         type=int,
         default=None
     )
+
+    parser.add_argument(
+        "--dataset", "-D",
+        type=str,
+        default="mpjv"
+    )
     
     args = parser.parse_args()
     
-    SAVE_DIR = "data/mpjv"
+    data_dir = "data"
+    if args.dataset not in (avaiable_dataset:=["mpjv", "mp", "jv"]):
+        print(f"dataset not in {avaiable_dataset}")
+    SAVE_DIR = f"{data_dir}/{args.dataset}"
     
     print(f"Fetching {args.num_entries if args.num_entries else 'all available'} structures")
     print(f"Target Properties: {args.target}")
     
     os.makedirs(SAVE_DIR, exist_ok=True)
     
-    jv_docs = load_jarvis_data("dft_3d", store_dir=SAVE_DIR)
+    jv_docs = load_jarvis_data("dft_3d", store_dir=data_dir)
     key_map = {
         "jid": "id",
         "formation_energy_peratom": "formation_energy_per_atom",
@@ -150,7 +157,14 @@ def main():
     )
     mp_docs = [mp_to_jarvis(doc) for doc in mp_docs]
 
-    merge_and_split_save(mp_docs, jv_docs, root=SAVE_DIR)
+    dataset_map = {
+        "mp": mp_docs,
+        "jv": jv_docs,
+        "mpjv": mp_docs + jv_docs,
+    }
+    dataset = dataset_map[args.dataset]
+            
+    merge_and_split_save(dataset, root=SAVE_DIR)
 
 if __name__ == "__main__":
     main()
