@@ -14,9 +14,7 @@ echo Installing torch_geometric...
 pip install torch_geometric
 
 echo Installing PyG dependencies...
-pip install pyg_lib torch_scatter torch_sparse -f https://data.pyg.org/whl/torch-2.6.0+cu126.html
+pip install torch_scatter torch_sparse -f https://data.pyg.org/whl/torch-2.6.0+cu126.html
 
 echo Installing from requirements.txt...
 pip install -r requirements.txt
-
-echo Setup complete with CUDA version: %CUDA_VERSION%
