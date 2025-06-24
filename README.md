@@ -1,7 +1,7 @@
 # GNN-Based Materials Property Prediction
 
 ## Setting
-python version used: 3.10.10
+python version used: 3.10.10 (recommended)
 
 (windows)
 ```

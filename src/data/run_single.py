@@ -58,7 +58,7 @@ def run_single_experiment(config_path: str, tag_override: str = None):
     #     std=std
     # )
     train_loader, val_loader, test_loader = get_loaders(
-        data_dir=cfg.data.data_dir,
+        data_root=cfg.data.data_dir,
         target=cfg.data.target,
         batch_size=cfg.data.batch_size,
         num_workers=cfg.data.num_workers,

@@ -3,8 +3,8 @@ experiment:
   explain_material_ids: []
 
 data:
-  data_dir: data/mpjv
-  dataset: mpjv
+  data_dir: data
+  dataset: [mp, jv]
   target: [formation_energy_per_atom]
   batch_size: 128
   num_workers: 1
@@ -18,7 +18,7 @@ model:
   num_mat_layers: [3, 5]
   edge_features: 128
   hidden_dim: 128
-  fc_features: [64, 128]
+  fc_features: 128
   output_features: 1
   num_heads: 4
   dropout: 0.1

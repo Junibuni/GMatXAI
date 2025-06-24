@@ -14,7 +14,7 @@ from torch_geometric.loader import DataLoader
 from src.data.figshare_dataset import Figshare_Dataset
 
 def get_loaders(
-    data_dir,
+    data_root,
     target='formation_energy_per_atom',
     batch_size=32,
     num_workers=0,
@@ -32,7 +32,7 @@ def get_loaders(
     Returns: List of PyTorch data loaders
 
     """
-    
+    data_dir = osp.join(data_root, dataset_name)
     # hard-coded
     if isinstance(target, list):
         if len(target) == 1:
