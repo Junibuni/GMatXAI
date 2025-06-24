@@ -1,6 +1,7 @@
 # "formation_energy_per_atom", "band_gap" as default
 
 import os
+import sys
 import random
 import pickle
 import argparse
@@ -9,6 +10,7 @@ from dotenv import load_dotenv
 
 import numpy as np
 from jarvis.db.figshare import data as load_jarvis_data
+from jarvis.db.figshare import get_request_data
 from mp_api.client import MPRester
 from pymatgen.core import Structure
 
@@ -128,8 +130,9 @@ def main():
     args = parser.parse_args()
     
     data_dir = "data"
-    if args.dataset not in (avaiable_dataset:=["mpjv", "mp", "jv"]):
+    if args.dataset not in (avaiable_dataset:=["mpjv", "jvmp", "mp", "jv"]):
         print(f"dataset not in {avaiable_dataset}")
+        sys.exit(1)
     SAVE_DIR = f"{data_dir}/{args.dataset}"
     
     print(f"Fetching {args.num_entries if args.num_entries else 'all available'} structures")
@@ -137,25 +140,30 @@ def main():
     
     os.makedirs(SAVE_DIR, exist_ok=True)
     
-    jv_docs = load_jarvis_data("dft_3d", store_dir=data_dir)
-    key_map = {
-        "jid": "id",
-        "formation_energy_peratom": "formation_energy_per_atom",
-        "optb88vdw_bandgap": "band_gap"
-    }
+    mp_docs = []
+    jv_docs = []
+    
+    if "jv" in args.dataset:
+        jv_docs = load_jarvis_data("dft_3d", store_dir=data_dir)
+        key_map = {
+            "jid": "id",
+            "formation_energy_peratom": "formation_energy_per_atom",
+            "optb88vdw_bandgap": "band_gap"
+        }
 
-    jv_docs = [
-        {key_map.get(k, k): v for k, v in d.items()}
-        for d in jv_docs
-    ]
+        jv_docs = [
+            {key_map.get(k, k): v for k, v in d.items()}
+            for d in jv_docs
+        ]
 
-    mp_docs = fetch_structures_in_batches(
-        api_key=MAPI,
-        total_limit=args.num_entries,
-        target_properties=args.target,
-        chunk_size=500
-    )
-    mp_docs = [mp_to_jarvis(doc) for doc in mp_docs]
+    if "mp" in args.dataset:
+        mp_docs = fetch_structures_in_batches(
+            api_key=MAPI,
+            total_limit=args.num_entries,
+            target_properties=args.target,
+            chunk_size=500
+        )
+        mp_docs = [mp_to_jarvis(doc) for doc in mp_docs]
 
     dataset_map = {
         "mp": mp_docs,
