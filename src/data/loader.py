@@ -24,7 +24,8 @@ def get_loaders(
     max_neighbors=25,
     norm=False,
     mean=0.0,
-    std=1.0
+    std=1.0,
+    persistent_workers=False
 ):
     """
     Create data loader object
@@ -76,10 +77,10 @@ def get_loaders(
     dataset_val = Figshare_Dataset(root=data_dir, data=dat_val, targets=targets_val, radius=radius, max_neigh=max_neighbors, name=prefix+"_val", mode="val", mean=mean, std=std, norm=norm)
     dataset_test = Figshare_Dataset(root=data_dir, data=dat_test, targets=targets_test, radius=radius, max_neigh=max_neighbors, name=prefix+"_test", mode="test", mean=mean, std=std, norm=norm)
     
-    train_loader = DataLoader(dataset_train, batch_size=batch_size, persistent_workers=True,
+    train_loader = DataLoader(dataset_train, batch_size=batch_size, persistent_workers=persistent_workers,
                                   shuffle=True, num_workers=num_workers,
                                   pin_memory=True)
-    val_loader = DataLoader(dataset_val, batch_size=batch_size, persistent_workers=True,
+    val_loader = DataLoader(dataset_val, batch_size=batch_size, persistent_workers=persistent_workers,
                                     shuffle=False, num_workers=num_workers,
                                     pin_memory=True)
     test_loader = DataLoader(dataset_test, batch_size=batch_size, persistent_workers=False,

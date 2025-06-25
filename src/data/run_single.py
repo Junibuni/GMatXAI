@@ -1,7 +1,9 @@
 import os
+import gc
 import yaml
 import time
 
+import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 
@@ -68,7 +70,8 @@ def run_single_experiment(config_path: str, tag_override: str = None):
         max_neighbors=25,
         mean=mean,
         std=std,
-        norm=norm
+        norm=norm,
+        persistent_workers=cfg.data.persistent_workers
     )
 
     if cfg.model.output_dim:
@@ -151,5 +154,9 @@ def run_single_experiment(config_path: str, tag_override: str = None):
     with open(os.path.join(log_dir, "config.yaml"), "w") as f:
         yaml.dump(cfg.to_dict(), f)
 
+    del model, trainer, optimizer, scheduler
+    del train_loader, val_loader, test_loader
+    torch.cuda.empty_cache()
+    gc.collect()
     print(f"\nFinished: {tag}")
     return tag, os.path.join(log_dir, "log.csv")

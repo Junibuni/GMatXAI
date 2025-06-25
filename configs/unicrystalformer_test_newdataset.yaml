@@ -12,6 +12,7 @@ data:
   seed: 42
   max_neighbors: 25
   is_norm: false
+  persistent_workers: false
 
 model:
   num_cart_layers: 3
