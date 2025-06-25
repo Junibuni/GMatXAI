@@ -1,4 +1,5 @@
 import os
+import gc
 import argparse
 import hashlib
 import pandas as pd
@@ -8,6 +9,8 @@ import matplotlib.pyplot as plt
 from itertools import product
 from pathlib import Path
 from copy import deepcopy
+
+import torch
 
 from src.data.run_single import run_single_experiment
 from src.data.test_single import run_test
@@ -227,7 +230,11 @@ def run_sweep(config_path, to_track, metric="val_mae"):
             yaml.dump(cfg_dict, f)
 
         print(f"\nHyperparams: {flat_params}")
-        tag_full, log_path = run_single_experiment(str(cfg_path), tag_override=f"{sweep_name}/{tag}")
+        try:
+            tag_full, log_path = run_single_experiment(str(cfg_path), tag_override=f"{sweep_name}/{tag}")
+        finally:
+            torch.cuda.empty_cache()
+            gc.collect()
 
         try:
             df = pd.read_csv(log_path)
