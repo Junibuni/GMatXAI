@@ -104,7 +104,8 @@ class UniCrystalFormer(nn.Module):
                  output_features: int = 1,
                  num_heads: int = 4,
                  dropout: float = 0.1,
-                 radius: float = 8.0):
+                 radius: float = 8.0,
+                 use_att_fusion: bool = False):
         super().__init__()
         # 1. Atom feature encoding (learned embedding + MEGNet features with gating)
         num_atom_types = 119  # number of atomic elements possible
@@ -145,6 +146,11 @@ class UniCrystalFormer(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(fc_features, output_features)
         )
+
+        self.use_attention_fusion = use_att_fusion
+        if self.use_attention_fusion:
+            self.attn_fuser = AttentionFusionMixer(hidden_dim)
+
         # Initialize weights (especially for linear layers) 
         self.apply(self._init_weights)
     
@@ -188,7 +194,10 @@ class UniCrystalFormer(nn.Module):
                 h_global = None
             # Fuse local and global outputs
             if h_local is not None and h_global is not None:
-                h_comb = h_local + h_global
+                if self.use_attention_fusion:
+                    h_comb = self.attn_fuser(h_local, h_global)
+                else:
+                    h_comb = h_local + h_global
             elif h_local is not None:
                 h_comb = h_local
             else:
@@ -219,5 +228,6 @@ class UniCrystalFormer(nn.Module):
             output_features = config.get("output_features", 1),
             num_heads       = config.get("num_heads", 4),
             dropout         = config.get("dropout", 0.1),
-            radius          = config.get("radius", 8.0)
+            radius          = config.get("radius", 8.0),
+            use_att_fusion  = config.get("use_att_fusion", False)
         )

@@ -14,8 +14,8 @@ data:
   is_norm: false
 
 model:
-  num_cart_layers: [3, 5]
-  num_mat_layers: [3, 5]
+  num_cart_layers: 3
+  num_mat_layers: 3
   edge_features: 128
   hidden_dim: 128
   fc_features: 128
@@ -23,6 +23,7 @@ model:
   num_heads: 4
   dropout: 0.1
   radius: 8.0
+  use_att_fusion: [false, true]
 
 
 training:
