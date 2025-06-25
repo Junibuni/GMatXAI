@@ -107,17 +107,17 @@ class UniCrystalFormer(nn.Module):
                  radius: float = 8.0,
                  use_att_fusion: bool = False):
         super().__init__()
-        # 1. Atom feature encoding (learned embedding + MEGNet features with gating)
-        num_atom_types = 119  # number of atomic elements possible
+
+        num_atom_types = 119
         self.atom_encoder = AtomEncoder(num_atom_types, hidden_dim, dropout)
-        # 2. Edge (distance) encoding: RBF expansion -> hidden_dim
+
         self.rbf = nn.Sequential(
             RBFExpansion(vmin=0.0, vmax=radius, bins=edge_features),
             nn.Linear(edge_features, hidden_dim),
             nn.SiLU(),
             nn.Linear(hidden_dim, hidden_dim)
         )
-        # 3. Define CartNet and TransformerConv layers
+
         self.cart_layers = nn.ModuleList([
             CartNet_layer(dim_in=hidden_dim, radius=radius) 
             for _ in range(num_cart_layers)
@@ -128,7 +128,7 @@ class UniCrystalFormer(nn.Module):
                           concat=False, beta=True)
             for _ in range(num_mat_layers)
         ])
-        # 4. Define fusion+FFN sublayers for each hybrid layer
+
         self.num_layers = max(num_cart_layers, num_mat_layers)
         self.norm_attn = nn.ModuleList([GraphNorm(hidden_dim) for _ in range(self.num_layers)])
         self.ffn_layers = nn.ModuleList([nn.Sequential(
@@ -138,7 +138,7 @@ class UniCrystalFormer(nn.Module):
                                          ) for _ in range(self.num_layers)])
         self.norm_ffn = nn.ModuleList([GraphNorm(hidden_dim) for _ in range(self.num_layers)])
         self.dropout = nn.Dropout(dropout)
-        # 5. Readout: Set2Set for graph-level pooling, then fully-connected output
+
         self.readout = Set2Set(hidden_dim, processing_steps=3)
         self.fc_out = nn.Sequential(
             nn.Linear(2 * hidden_dim, fc_features),
@@ -151,7 +151,6 @@ class UniCrystalFormer(nn.Module):
         if self.use_attention_fusion:
             self.attn_fuser = AttentionFusionMixer(hidden_dim)
 
-        # Initialize weights (especially for linear layers) 
         self.apply(self._init_weights)
     
     def _init_weights(self, m):
@@ -161,38 +160,34 @@ class UniCrystalFormer(nn.Module):
                 nn.init.zeros_(m.bias)
     
     def forward(self, data):
-        # Encode atomic features (atomic number and MEGNet embedding)
-        h0 = self.atom_encoder(data.x, data.atom_megnet_embed)         # shape [N, hidden_dim]
-        # Encode edge attributes (here data.edge_attr is assumed to contain interatomic displacement or distance vector)
-        # We use the norm of the displacement as the distance.
-        edge_vec = data.edge_attr                                       # shape [E, 3] if containing displacement vectors
-        edge_dist = torch.norm(edge_vec, dim=1)                         # shape [E]
-        edge_attr = self.rbf(edge_dist)                                 # shape [E, hidden_dim]
-        # Prepare graph index for normalization
-        batch_idx = data.batch                                          # shape [N]
-        # Initialize features and edges for iterative updates
+        h0 = self.atom_encoder(data.x, data.atom_megnet_embed)          # [N, hidden_dim]
+
+        edge_vec = data.edge_attr                                       # [E, 3] if containing displacement vectors
+        edge_dist = torch.norm(edge_vec, dim=1)                         # [E]
+        edge_attr = self.rbf(edge_dist)                                 # [E, hidden_dim]
+
+        batch_idx = data.batch                                          # [N]
+
         h = h0
         edge_index = data.edge_index
         cart_dist = data.cart_dist
-        # We will update data.x in-place for local conv usage, but keep a separate 'h' for global usage.
+
         data.x = h
         data.edge_attr = edge_attr
-        # Hybrid layer-by-layer propagation
+
         for i in range(self.num_layers):
-            # Local CartNet update (if layer exists)
             if i < len(self.cart_layers):
-                # Clone data to avoid altering original before global attention
                 local_data = Data(x=h, edge_index=edge_index, edge_attr=edge_attr, batch=batch_idx, cart_dist=cart_dist)
-                local_data = self.cart_layers[i](local_data)   # performs message passing using radius neighbors
-                h_local = local_data.x                         # shape [N, hidden_dim]
+                local_data = self.cart_layers[i](local_data)
+                h_local = local_data.x # [N, hidden_dim]
             else:
                 h_local = None
-            # Global TransformerConv update (if layer exists)
+
             if i < len(self.mat_layers):
-                h_global = self.mat_layers[i](h, edge_index, edge_attr)  # shape [N, hidden_dim]
+                h_global = self.mat_layers[i](h, edge_index, edge_attr) # [N, hidden_dim]
             else:
                 h_global = None
-            # Fuse local and global outputs
+
             if h_local is not None and h_global is not None:
                 if self.use_attention_fusion:
                     h_comb = self.attn_fuser(h_local, h_global)
@@ -202,18 +197,18 @@ class UniCrystalFormer(nn.Module):
                 h_comb = h_local
             else:
                 h_comb = h_global
-            # Apply normalization and first residual connection (attention sub-layer)
-            h_comb_norm = self.norm_attn[i](h_comb, batch_idx)          # GraphNorm over combined message
-            h_attn = h + self.dropout(h_comb_norm)                      # add skip connection from input h
-            # Feed-forward network on fused features
-            h_ffn = self.ffn_layers[i](h_attn)                          # transform features
-            h_ffn_norm = self.norm_ffn[i](h_ffn, batch_idx)             # normalize FFN output
-            h = h_attn + self.dropout(h_ffn_norm)                       # second skip connection
-            # Prepare for next layer (h updated). Also update data.x for next CartNet layer usage.
+
+            h_comb_norm = self.norm_attn[i](h_comb, batch_idx)
+            h_attn = h + self.dropout(h_comb_norm)
+
+            h_ffn = self.ffn_layers[i](h_attn)
+            h_ffn_norm = self.norm_ffn[i](h_ffn, batch_idx)
+            h = h_attn + self.dropout(h_ffn_norm)
+
             data.x = h
-        # Graph-level readout: aggregate node embeddings to predict formation energy per graph
-        graph_emb = self.readout(h, batch_idx)          # Set2Set outputs [batch_graphs, 2*hidden_dim]
-        out = self.fc_out(graph_emb)                    # final MLP to scalar prediction
+
+        graph_emb = self.readout(h, batch_idx) # [batch_graphs, 2*hidden_dim]
+        out = self.fc_out(graph_emb)
         return out
 
     @classmethod
