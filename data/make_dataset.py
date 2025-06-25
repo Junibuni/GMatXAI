@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 import numpy as np
 from jarvis.db.figshare import data as load_jarvis_data
-from jarvis.db.figshare import get_request_data
+from jarvis.db.figshare import get_request_data, get_db_info
 from mp_api.client import MPRester
 from pymatgen.core import Structure
 
@@ -144,7 +144,20 @@ def main():
     jv_docs = []
     
     if "jv" in args.dataset:
-        jv_docs = load_jarvis_data("dft_3d", store_dir=data_dir)
+        db_info = get_db_info()
+        jv_dft = "dft_3d"
+        if jv_dft not in list(db_info.keys()):
+            raise ValueError("Check DB name options.")
+        
+        url, js_tag, msg, ref = db_info[jv_dft]
+        print(msg)
+        print("Reference:", ref)
+
+        jv_docs = get_request_data(js_tag=js_tag,
+                                   url=url,
+                                   store_dir=data_dir)
+
+        # jv_docs = load_jarvis_data("dft_3d", store_dir=data_dir)
         key_map = {
             "jid": "id",
             "formation_energy_peratom": "formation_energy_per_atom",
