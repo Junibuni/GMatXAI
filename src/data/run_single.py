@@ -41,7 +41,13 @@ def run_single_experiment(config_path: str, tag_override: str = None):
 
     print(f"\nLoad Dataset: {cfg.data.target}")
     norm = cfg.data.isNorm
-    mean, std = -0.9633, 1.0722
+    stats_dict = {
+        "mp"  : (-1.377862, 1.014101),
+        "jv"  : (-0.819111, 1.084491),
+        "mpjv": (-0.991479, 1.094144),
+    }
+    mean, std = stats_dict[cfg.data.dataset]
+
     if norm:
         print(f"Normalize data with mean({mean}), std({std})")
     ## Legacy
