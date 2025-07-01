@@ -17,7 +17,6 @@ from src.utils.loss import get_loss_function
 from src.utils.data import sample_explanation_data
 from src.utils.analysis.parity_plot import plot_parity
 from src.utils.optim import get_optimizer, get_scheduler
-from src.xai.wrappers import CGCNNWrapper
 from src.xai.batch_explainer import explain_batch
 
 
