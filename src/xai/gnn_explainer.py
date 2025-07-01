@@ -8,6 +8,7 @@ from torch_geometric.explain import Explainer, GNNExplainer, ModelConfig
 from torch_geometric.utils import to_networkx
 
 from src.utils.atom_info import ATOM_COLOR_MAP
+from src.xai.wrappers import ModelWrapper
 
 def explain_graph_prediction(
     model,
@@ -22,10 +23,12 @@ def explain_graph_prediction(
     model = model.to(device)
     data = data.to(device)
     model.eval()
+    
+    wrapper = ModelWrapper(model, data)
 
     if explainer is None:
         explainer = Explainer(
-            model=model,
+            model=wrapper,
             algorithm=GNNExplainer(epochs=epochs),
             explanation_type='model',
             model_config=ModelConfig(

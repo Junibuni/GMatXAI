@@ -139,7 +139,7 @@ def run_single_experiment(config_path: str, tag_override: str = None):
     material_ids = getattr(cfg.experiment, "explain_material_ids", None)
     selected_data = sample_explanation_data(test_loader.dataset, material_ids, k=3)
     explain_batch(
-        model=CGCNNWrapper(model),
+        model=model,
         data_list=selected_data,
         save_dir=explain_dir,
         epochs=100,
