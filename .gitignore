@@ -13,7 +13,7 @@ data/megnet/*
 data/*/
 data/*.zip
 
-outputs/*
+outputs/*/
 
 outputs/checkpoints/*
 outputs/explain/*
