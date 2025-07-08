@@ -372,7 +372,7 @@ This is common in regression tasks to:
 * Especially useful when target distribution is skewed or wide-ranging.
 * Helps **stabilize training** for low-scale targets (e.g., 0–1 eV).
 
-#### In our result:
+#### In the result:
 
 * Test 3 achieved **comparable performance** to Test 1 in both MAE and R².
 
@@ -428,11 +428,13 @@ This is common in regression tasks to:
 #### Training & Validation Loss Curve
 
 
-<img src="outputs/loss.png" alt="Loss Curve" width="450"/>
-
+<p align="center">
+  <img src="outputs/loss.png" alt="Loss Curve" width="450"/>
+</p>
 ---
 
 #### Parity Plot (True vs Predicted)
 
-
+<p align="center">
 <img src="outputs/parity_plot.png" alt="Loss Curve" width="450"/>
+</p>
