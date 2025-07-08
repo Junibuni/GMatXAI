@@ -226,3 +226,15 @@ class UniCrystalFormer(nn.Module):
             radius          = config.get("radius", 8.0),
             use_att_fusion  = config.get("use_att_fusion", False)
         )
+        
+    @property
+    def num_params(self):
+        return sum(p.numel() for p in self.parameters())
+
+    @property
+    def model_size_bytes(self):
+        return sum(p.numel() * p.element_size() for p in self.parameters())
+
+    @property
+    def model_size_mb(self):
+        return self.model_size_bytes / (1024 ** 2)
