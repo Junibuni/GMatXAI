@@ -200,14 +200,14 @@ Each atom is represented using both:
 
 The encoder fuses these through a **gated mechanism**:
 
-$$
+```math
 \begin{align*}
 \mathbf{e}_{\text{atom}} &= \text{Embedding}(Z) \in \mathbb{R}^d \\
 \mathbf{e}_{\text{megnet}} &= \text{Linear}(\mathbf{f}_{\text{megnet}}) \in \mathbb{R}^d \\
 \mathbf{g} &= \sigma\left( \text{Linear}([\mathbf{e}_{\text{atom}}, \mathbf{e}_{\text{megnet}}]) \right) \\
 \mathbf{h}_0 &= \mathbf{g} \odot \mathbf{e}_{\text{atom}} + (1 - \mathbf{g}) \odot \mathbf{e}_{\text{megnet}}
 \end{align*}
-$$
+```
 
 This **gated fusion** allows the model to adaptively balance data-driven atomic representations and physically-informed descriptors.
 
@@ -217,9 +217,9 @@ This **gated fusion** allows the model to adaptively balance data-driven atomic 
 
 Interatomic distances $d_{ij} = \|\mathbf{r}_i - \mathbf{r}_j\|$ are encoded via a **Radial Basis Function (RBF)** expansion to improve expressiveness:
 
-$$
+```math
 \text{RBF}(d_{ij})_k = \exp\left( -\gamma (d_{ij} - \mu_k)^2 \right), \quad \mu_k = \text{linspace}(r_{\text{min}}, r_{\text{max}})
-$$
+```
 
 This allows smooth and differentiable representation of pairwise distances for subsequent message passing.
 
@@ -233,9 +233,9 @@ To model **short-range interactions**, such as covalent bonds or local coordinat
 * Message function incorporates geometric info (e.g., direction vectors)
 * Layer applies:
 
-$$
+```math
 \mathbf{h}_i^{(l+1)} = \text{Norm}\left( \mathbf{h}_i^{(l)} + \sum_{j \in \mathcal{N}_r(i)} M_\theta(\mathbf{h}_i^{(l)}, \mathbf{h}_j^{(l)}, \mathbf{r}_{ij}) \right)
-$$
+```
 
 Where:
 
@@ -251,21 +251,21 @@ This captures local physics like bond angles, steric effects, and coordination g
 
 Long-range interactions (e.g., electrostatics, delocalized electrons) are modeled using **MatformerConv**, a **Transformer-inspired GNN layer** with attention over graph structure:
 
-$$
+```math
 \mathbf{h}_i^{(l+1)} = \mathbf{h}_i^{(l)} + \sum_{j \in \mathcal{N}(i)} \alpha_{ij} W_v \mathbf{h}_j
-$$
+```
 
 Where:
 
 * Attention weights:
 
-$$
+```math
 \alpha_{ij} = \frac{
     \exp\left( \frac{ (W_q \mathbf{h}_i)^T (W_k \mathbf{h}_j + W_e \mathbf{e}_{ij}) }{ \sqrt{d} } \right)
 }{
     \sum_{k \in \mathcal{N}(i)} \exp\left( \frac{ (W_q \mathbf{h}_i)^T (W_k \mathbf{h}_k + W_e \mathbf{e}_{ik}) }{ \sqrt{d} } \right)
 }
-$$
+```
 
 This attention mechanism allows the model to **weight distant nodes** dynamically based on both node and edge features.
 
@@ -277,15 +277,15 @@ To combine local $\mathbf{h}_{\text{local}}$ and global $\mathbf{h}_{\text{globa
 
 * **Option 1 (Simple Sum)**:
 
-  $$
+  ```math
   \mathbf{h}_{\text{fused}} = \mathbf{h}_{\text{local}} + \mathbf{h}_{\text{global}}
-  $$
+  ```
 
 * **Option 2 (Attention Fusion)**:
 
-  $$
+  ```math
   \mathbf{h}_{\text{fused}} = \text{softmax}([s_A, s_B]) \cdot [\mathbf{h}_{\text{local}}, \mathbf{h}_{\text{global}}]
-  $$
+  ```
 
 Where $s_A, s_B = \text{score}_\theta(\cdot)$ are scalar confidence scores. This enables **adaptive layerwise control** over fusion weights.
 
@@ -295,15 +295,15 @@ Where $s_A, s_B = \text{score}_\theta(\cdot)$ are scalar confidence scores. This
 
 Global pooling uses **Set2Set**, a learnable attention-based graph pooling operator:
 
-$$
+```math
 \mathbf{g} = \text{Set2Set}(\{ \mathbf{h}_i \}_{i=1}^N)
-$$
+```
 
 Final prediction:
 
-$$
+```math
 \hat{y} = \text{MLP}(\mathbf{g}) \in \mathbb{R}
-$$
+```
 
 ---
 
@@ -335,9 +335,9 @@ $$
 
 `AttentionFusionMixer` dynamically learns the importance of local (CartNet) vs global (Matformer) representations at each node. Rather than simply summing them, it computes attention weights:
 
-$$
+```math
 \mathbf{h}_{\text{fused}} = \alpha \cdot \mathbf{h}_{\text{local}} + (1 - \alpha) \cdot \mathbf{h}_{\text{global}}
-$$
+```
 
 #### Why it can help:
 
@@ -357,9 +357,9 @@ $$
 
 In Test 4, the target property (`formation_energy_per_atom`) was normalized—typically via min-max scaling or standardization:
 
-$$
+```math
 y_{\text{norm}} = \frac{y - \mu}{\sigma}
-$$
+```
 
 This is common in regression tasks to:
 
@@ -428,11 +428,11 @@ This is common in regression tasks to:
 #### Training & Validation Loss Curve
 
 
-![Loss Curve](outputs/loss.png)
+<img src="outputs/loss.png" alt="Loss Curve" width="450"/>
 
 ---
 
 #### Parity Plot (True vs Predicted)
 
 
-![Parity Plot](outputs/parity_plot.png)
+<img src="outputs/parity_plot.png" alt="Loss Curve" width="450"/>
