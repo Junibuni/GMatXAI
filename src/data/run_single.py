@@ -85,6 +85,9 @@ def run_single_experiment(config_path: str, tag_override: str = None):
     
     print(f"\nLoad Model ({cfg.experiment.model_name}) with Hyperparamters:\n\t{cfg.model}")
     model = get_model(cfg.experiment.model_name, config=cfg.model)
+    print(f"Total parameters: {model.num_params:,}")
+    print(f"\t-Model size: {model.model_size_bytes / 1024:.2f} KB")
+    print(f"\t-Model size: {model.model_size_mb:.4f} MB")
 
     print(f"\nOptimizer Config: \n\t{cfg.training.optimizer}")
     optimizer = get_optimizer(
