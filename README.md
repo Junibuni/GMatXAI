@@ -317,9 +317,6 @@ $$
 | MEGNet Features        | Known physical descriptors                           | Accelerates convergence                       |
 | RBF Edge Expansion     | Distance-sensitive modeling                          | Smooth non-linear transformation of distances |
 
-
-아래는 `Test 1`, `Test 2`, 그리고 `Test 4`의 비교 및 해당 실험 설정 (특히 attention fusion과 y-normalization)에 대한 과학적 해석입니다.
-
 ---
 
 ## Experiment Comparison: Attention Fusion & Target Normalization
