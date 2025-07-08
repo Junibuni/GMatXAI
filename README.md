@@ -431,7 +431,6 @@ This is common in regression tasks to:
 <p align="center">
   <img src="outputs/loss.png" alt="Loss Curve" width="450"/>
 </p>
----
 
 #### Parity Plot (True vs Predicted)
 
